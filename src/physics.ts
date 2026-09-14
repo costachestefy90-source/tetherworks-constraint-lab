@@ -7,6 +7,7 @@ export interface PhysicsConfig {
   stiffness: number
   solverPasses: number
   showStress?: boolean
+  breakTension?: number
 }
 
 export interface Point {
@@ -109,6 +110,8 @@ export class ConstraintWorld {
     const pointA = this.getPoint(a)
     const pointB = this.getPoint(b)
     if (!pointA || !pointB || a === b) return null
+    const alreadyConnected = this.links.some((link) => (link.a === a && link.b === b) || (link.a === b && link.b === a))
+    if (alreadyConnected) return null
     const material = options.material ?? 'rope'
     const defaults = MATERIAL_DEFAULTS[material]
     const link: Link = {
@@ -146,6 +149,8 @@ export class ConstraintWorld {
     const passes = clamp(Math.round(config.solverPasses), 2, 14)
     const substeps = 2
     const subDt = dt / substeps
+    const breakTension = clamp(config.breakTension ?? 0, 0, 100)
+    const brokenIds = new Set<number>()
     this.time += dt
     this.stepCount += 1
 
@@ -216,9 +221,17 @@ export class ConstraintWorld {
             b.y -= correctionY * (inverseMassB / inverseMassTotal)
           }
           link.tension = clamp(Math.abs(normalizedError) * 100 * link.stiffness, 0, 100)
+          if (breakTension > 0 && link.tension >= breakTension) brokenIds.add(link.id)
         })
       }
     }
+
+    if (brokenIds.size === 0) return []
+    const brokenLinks = this.links.filter((link) => brokenIds.has(link.id))
+    for (let index = this.links.length - 1; index >= 0; index -= 1) {
+      if (brokenIds.has(this.links[index].id)) this.links.splice(index, 1)
+    }
+    return brokenLinks
   }
 
   dragPoint(id: number, x: number, y: number) {
@@ -228,6 +241,14 @@ export class ConstraintWorld {
     point.y = clamp(y, 20, this.height - 28)
     point.oldX = point.x
     point.oldY = point.y
+  }
+
+  applyImpulse(id: number, velocityX: number, velocityY: number) {
+    const point = this.getPoint(id)
+    if (!point || point.pinned) return false
+    point.oldX = point.x - velocityX / 60
+    point.oldY = point.y - velocityY / 60
+    return true
   }
 
   findPointAt(x: number, y: number, maxDistance = 30) {

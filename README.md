@@ -15,8 +15,10 @@ Tetherworks is a browser-based physics playground for curious hands. Build a rop
 - Switch the active behavior between rope, chain, and elastic elements.
 - Tune gravity, wind, damping, stiffness, solver passes, and the segment count used for new mass links while the simulation is running.
 - Turn on stress colors to make high-tension links visible at a glance.
+- Enable the failure redline to automatically break links that exceed a chosen load threshold.
+- Toggle focus labels for quick node IDs, then use the inspector's Nudge action (or press `K`) to inject a measured impulse into a selected mass.
 - Read system energy, peak tension, stability, center-of-mass movement, and a rolling energy trace.
-- Use keyboard shortcuts: `Space` play/pause, `R` reset, `C` cut mode, and `1`–`7` to load presets.
+- Use keyboard shortcuts: `Space` play/pause, `R` reset, `C` cut mode, `L` focus labels, `K` nudge the selected mass, and `1`–`7` to load presets.
 
 ## Technical notes
 
@@ -61,6 +63,9 @@ GitHub Pages deployment is defined in [`.github/workflows/deploy.yml`](./.github
 | Stiffness / Damping | Change constraint correction and motion decay |
 | Solver passes | Trade speed for constraint tightness |
 | Segment count | Set the number of links in a new mass attachment |
+| Failure redline | Break a link automatically when its tension reaches the selected threshold |
+| Focus labels | Show a readable node ID beside the hovered or selected point |
+| Nudge / `K` | Apply a quick directional impulse to the selected mass |
 
 ## Project notes
 

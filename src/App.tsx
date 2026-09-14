@@ -43,6 +43,7 @@ const DEFAULT_CONFIG: PhysicsConfig = {
   damping: 0.93,
   stiffness: 0.92,
   solverPasses: 8,
+  breakTension: 0,
 }
 
 const EMPTY_METRICS: WorldMetrics = {
@@ -182,7 +183,7 @@ function drawLink(context: CanvasRenderingContext2D, link: Link, a: Point, b: Po
   context.restore()
 }
 
-function drawWorld(context: CanvasRenderingContext2D, world: ConstraintWorld, config: PhysicsConfig, selectedId: number | null, hoverId: number | null, running: boolean, showGuides: boolean) {
+function drawWorld(context: CanvasRenderingContext2D, world: ConstraintWorld, config: PhysicsConfig, selectedId: number | null, hoverId: number | null, running: boolean, showGuides: boolean, showLabels: boolean) {
   const { width, height } = world
   context.clearRect(0, 0, width, height)
   context.fillStyle = '#0a1721'
@@ -233,23 +234,41 @@ function drawWorld(context: CanvasRenderingContext2D, world: ConstraintWorld, co
     const hovered = point.id === hoverId
     if (point.pinned) {
       drawAnchor(context, point, selected || hovered)
-      return
+    } else {
+      context.save()
+      context.fillStyle = point.tint ?? '#d5f2ec'
+      context.strokeStyle = selected ? '#f6c453' : '#17313a'
+      context.lineWidth = selected ? 3 : 2
+      context.shadowColor = selected || hovered ? `${point.tint ?? '#bee6e0'}aa` : 'transparent'
+      context.shadowBlur = selected || hovered ? 22 : 0
+      context.beginPath()
+      context.arc(point.x, point.y, point.radius, 0, Math.PI * 2)
+      context.fill()
+      context.stroke()
+      context.fillStyle = '#0a1721'
+      context.beginPath()
+      context.arc(point.x - point.radius * 0.25, point.y - point.radius * 0.25, Math.max(2, point.radius * 0.18), 0, Math.PI * 2)
+      context.fill()
+      context.restore()
     }
-    context.save()
-    context.fillStyle = point.tint ?? '#d5f2ec'
-    context.strokeStyle = selected ? '#f6c453' : '#17313a'
-    context.lineWidth = selected ? 3 : 2
-    context.shadowColor = selected || hovered ? `${point.tint ?? '#bee6e0'}aa` : 'transparent'
-    context.shadowBlur = selected || hovered ? 22 : 0
-    context.beginPath()
-    context.arc(point.x, point.y, point.radius, 0, Math.PI * 2)
-    context.fill()
-    context.stroke()
-    context.fillStyle = '#0a1721'
-    context.beginPath()
-    context.arc(point.x - point.radius * 0.25, point.y - point.radius * 0.25, Math.max(2, point.radius * 0.18), 0, Math.PI * 2)
-    context.fill()
-    context.restore()
+
+    if (showLabels && (selected || hovered)) {
+      const label = `${point.pinned ? 'ANCHOR' : 'MASS'} / ${point.id.toString().padStart(2, '0')}`
+      context.save()
+      context.font = '700 10px ui-monospace, SFMono-Regular, Menlo, monospace'
+      const labelWidth = context.measureText(label).width + 16
+      const labelX = clamp(point.x + point.radius + 10, 12, width - labelWidth - 12)
+      const labelY = clamp(point.y - point.radius - 26, 12, height - 40)
+      drawRoundedRect(context, labelX, labelY, labelWidth, 22, 6)
+      context.fillStyle = 'rgba(7,16,24,.9)'
+      context.fill()
+      context.strokeStyle = selected ? 'rgba(246,196,83,.58)' : 'rgba(190,230,224,.25)'
+      context.lineWidth = 1
+      context.stroke()
+      context.fillStyle = selected ? '#f6c453' : '#bee6e0'
+      context.fillText(label, labelX + 8, labelY + 14)
+      context.restore()
+    }
   })
 
   const windStrength = Math.abs(config.wind)
@@ -309,7 +328,9 @@ export default function App() {
   const [energyHistory, setEnergyHistory] = useState<number[]>([18, 19, 18.5, 20, 21, 20.5, 22, 21, 23, 22, 24, 22])
   const [events, setEvents] = useState<string[]>(['Suspension bridge loaded', 'Solver warm-up complete', 'Ready for interaction'])
   const [showGuides, setShowGuides] = useState(true)
+  const [showLabels, setShowLabels] = useState(false)
   const [notice, setNotice] = useState('')
+  const [showInfo, setShowInfo] = useState(false)
 
   const activePreset = getPreset(activePresetId)
 
@@ -330,6 +351,24 @@ export default function App() {
     setNotice(`${preset.name} loaded`)
     setEvents((current) => [`${preset.name} loaded`, 'Preset topology rebuilt', ...current].slice(0, 4))
   }, [])
+
+  const nudgeSelected = useCallback(() => {
+    const point = selectedId === null ? undefined : worldRef.current.getPoint(selectedId)
+    if (!point) {
+      setNotice('Select a movable mass first')
+      return
+    }
+    if (point.pinned) {
+      setNotice('Pinned anchors cannot be nudged')
+      return
+    }
+    const direction = point.x < WORLD_WIDTH / 2 ? 1 : -1
+    if (worldRef.current.applyImpulse(point.id, direction * 145, -105)) {
+      setRunning(true)
+      addEvent(`${point.label ?? 'Mass'} nudged into motion`)
+      setNotice('Impulse applied')
+    }
+  }, [addEvent, selectedId])
 
   useEffect(() => {
     loadPreset('suspension')
@@ -361,8 +400,12 @@ export default function App() {
       const delta = Math.min(0.034, Math.max(0.001, (time - lastTime) / 1000))
       lastTime = time
       const world = worldRef.current
-      if (running) world.step(delta, config)
-      drawWorld(context, world, config, selectedId, hoverId, running, showGuides)
+      const brokenLinks = running ? world.step(delta, config) : []
+      if (brokenLinks.length) {
+        addEvent(`${brokenLinks.length} constraint${brokenLinks.length === 1 ? '' : 's'} failed at the redline`)
+        setNotice(`${brokenLinks.length} constraint${brokenLinks.length === 1 ? '' : 's'} failed`)
+      }
+      drawWorld(context, world, config, selectedId, hoverId, running, showGuides, showLabels)
       if (time - lastMetricTime > 130) {
         const nextMetrics = world.getMetrics(config)
         setMetrics(nextMetrics)
@@ -377,23 +420,30 @@ export default function App() {
       observer.disconnect()
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
-  }, [config, hoverId, running, selectedId, showGuides])
+  }, [addEvent, config, hoverId, running, selectedId, showGuides, showLabels])
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+      if (event.key === 'Escape') {
+        setShowInfo(false)
+        setLinkStartId(null)
+        return
+      }
       if (event.code === 'Space') {
         event.preventDefault()
         setRunning((value) => !value)
       }
       if (event.key.toLowerCase() === 'r') loadPreset(activePresetId)
       if (event.key.toLowerCase() === 'c') setMode('cut')
+      if (event.key.toLowerCase() === 'l') setShowLabels((value) => !value)
+      if (event.key.toLowerCase() === 'k') nudgeSelected()
       const numeric = Number(event.key)
       if (numeric >= 1 && numeric <= PRESETS.length) loadPreset(PRESETS[numeric - 1].id)
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activePresetId, loadPreset])
+  }, [activePresetId, loadPreset, nudgeSelected])
 
   useEffect(() => {
     if (!notice) return
@@ -444,7 +494,11 @@ export default function App() {
       } else if (nearest.id === linkStartId) {
         setNotice('Choose a different node')
       } else {
-        world.addLink(linkStartId, nearest.id, { material, stiffness: config.stiffness })
+        const linkId = world.addLink(linkStartId, nearest.id, { material, stiffness: config.stiffness })
+        if (linkId === null) {
+          setNotice('Those nodes are already connected')
+          return
+        }
         setSelectedId(nearest.id)
         setLinkStartId(null)
         addEvent(`${materialLabel[material]} constraint connected`)
@@ -517,6 +571,8 @@ export default function App() {
 
   const selectedPoint = selectedId ? worldRef.current.getPoint(selectedId) : undefined
   const selectedLinks = selectedId ? worldRef.current.links.filter((link) => link.a === selectedId || link.b === selectedId) : []
+  const selectedSpeed = selectedPoint ? Math.hypot((selectedPoint.x - selectedPoint.oldX) * 60, (selectedPoint.y - selectedPoint.oldY) * 60) : 0
+  const selectedLoad = selectedLinks.length ? Math.max(...selectedLinks.map((link) => link.tension)) : 0
 
   return (
     <div className="app-shell">
@@ -528,17 +584,17 @@ export default function App() {
             <div className="brand-subtitle">CONSTRAINT LAB <span>/</span> STARDANCE</div>
           </div>
         </div>
-        <div className="topbar-middle"><span className="status-pip" /> LOCAL SIMULATION <span className="topbar-divider" /> v0.1 / VERLET CORE</div>
+        <div className="topbar-middle"><span className="status-pip" /> LOCAL SIMULATION <span className="topbar-divider" /> v0.2 / VERLET CORE</div>
         <div className="topbar-actions">
           <a href="https://github.com/costachestefy90-source/tetherworks-constraint-lab" target="_blank" rel="noreferrer" className="topbar-link"><Github size={15} /> Source</a>
-          <button className="icon-button" aria-label="Project info" title="Project info"><Info size={17} /></button>
+          <button className="icon-button" aria-label="Project info" aria-expanded={showInfo} title="Project info" onClick={() => setShowInfo(true)}><Info size={17} /></button>
           <div className="avatar">S</div>
         </div>
       </header>
 
       <main className="workspace-grid">
         <aside className="left-panel panel-surface">
-          <div className="panel-heading"><div><span className="section-kicker">EXPERIMENT DECK</span><h2>Presets</h2></div><span className="count-pill">07</span></div>
+          <div className="panel-heading"><div><span className="section-kicker">EXPERIMENT DECK</span><h2>Presets</h2></div><span className="count-pill">{PRESETS.length.toString().padStart(2, '0')}</span></div>
           <div className="preset-list">
             {PRESETS.map((preset) => <PresetCard key={preset.id} preset={preset} active={preset.id === activePresetId} onClick={() => loadPreset(preset.id)} />)}
           </div>
@@ -557,7 +613,7 @@ export default function App() {
           <div className="canvas-card">
             <div className="canvas-topline">
               <div className="canvas-legend"><span className="legend-item"><i className="legend-line rope-line" /> rope</span><span className="legend-item"><i className="legend-line chain-line" /> chain</span><span className="legend-item"><i className="legend-line elastic-line" /> elastic</span></div>
-              <div className="canvas-readout"><span>FIELD {WORLD_WIDTH} × {WORLD_HEIGHT}</span><span className="readout-divider" /><span>{formatNumber(worldRef.current.points.length)} NODES</span></div>
+              <div className="canvas-readout"><span>FIELD {WORLD_WIDTH} × {WORLD_HEIGHT}</span><span className="readout-divider" /><span>{formatNumber(worldRef.current.points.length)} NODES</span><span className="readout-divider" /><span>{formatNumber(worldRef.current.links.length)} LINKS</span></div>
             </div>
             <div className="canvas-wrap">
               <canvas ref={canvasRef} className="simulation-canvas" aria-label="Interactive constraint physics simulation" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={() => setHoverId(null)} />
@@ -583,6 +639,7 @@ export default function App() {
             <Metric label="System energy" value={`${formatNumber(metrics.energy, 1)} J`} note="rolling total" tone="gold" icon={<Zap size={15} />} />
             <Metric label="Peak tension" value={`${formatNumber(metrics.maxTension)}%`} note="highest link load" tone="coral" icon={<Activity size={15} />} />
             <Metric label="Stability" value={`${formatNumber(metrics.stability)}%`} note={metrics.stability > 78 ? 'inside safe band' : 'watch the redline'} tone={metrics.stability > 78 ? 'mint' : 'coral'} icon={<CircleGauge size={15} />} />
+            <Metric label="Center of mass" value={`${formatNumber(metrics.centerOfMass.x)} / ${formatNumber(metrics.centerOfMass.y)}`} note="weighted field position" tone="mint" icon={<Compass size={15} />} />
             <div className="metric-card energy-card"><div className="metric-topline"><span className="metric-label">Energy trace</span><span className="trace-live">LIVE</span></div><Sparkline values={energyHistory} /><div className="metric-note">last 30 samples</div></div>
           </div>
         </section>
@@ -611,11 +668,14 @@ export default function App() {
             <div className="control-section-title"><span>Visualization</span><Crosshair size={15} /></div>
             <label className="toggle-row"><span><span className="toggle-title">Stress colors</span><span className="toggle-description">Map tension along each link</span></span><input type="checkbox" checked={Boolean(config.showStress)} onChange={(event) => setConfig((current) => ({ ...current, showStress: event.target.checked }))} /><span className="toggle-control" /></label>
             <label className="toggle-row"><span><span className="toggle-title">Field guides</span><span className="toggle-description">Grid, axes, and labels</span></span><input type="checkbox" checked={showGuides} onChange={(event) => setShowGuides(event.target.checked)} /><span className="toggle-control" /></label>
+            <label className="toggle-row"><span><span className="toggle-title">Focus labels</span><span className="toggle-description">Show IDs on hovered nodes</span></span><input type="checkbox" checked={showLabels} onChange={(event) => setShowLabels(event.target.checked)} /><span className="toggle-control" /></label>
+            <label className="toggle-row"><span><span className="toggle-title">Failure redline</span><span className="toggle-description">Automatically break overloaded links</span></span><input type="checkbox" checked={(config.breakTension ?? 0) > 0} onChange={(event) => setConfig((current) => ({ ...current, breakTension: event.target.checked ? 86 : 0 }))} /><span className="toggle-control" /></label>
+            {(config.breakTension ?? 0) > 0 ? <SliderRow label="Failure threshold" value={config.breakTension ?? 86} min={45} max={100} step={1} display={`${formatNumber(config.breakTension ?? 86)}%`} onChange={(value) => updateConfig('breakTension', value)} hint="link load before failure" /> : null}
           </section>
 
           <section className="selection-section">
             <div className="selection-title"><span>Selection</span><span className="selection-status">{selectedPoint ? 'ACTIVE' : 'IDLE'}</span></div>
-            {selectedPoint ? <div className="selection-card"><div className="selection-main"><div className="selection-avatar">{selectedPoint.pinned ? <Anchor size={16} /> : <CircleDot size={16} />}</div><div><strong>{selectedPoint.pinned ? 'Anchor point' : 'Mass node'}</strong><span>NODE / {selectedPoint.id.toString().padStart(2, '0')}</span></div></div><div className="selection-grid"><span>mass <b>{formatNumber(selectedPoint.mass, 1)} kg</b></span><span>links <b>{selectedLinks.length}</b></span><span>x <b>{formatNumber(selectedPoint.x)}</b></span><span>y <b>{formatNumber(selectedPoint.y)}</b></span></div></div> : <div className="empty-selection"><MousePointer2 size={16} /><span>Click a mass or anchor<br /><small>Drag a mass to disturb the field</small></span></div>}
+            {selectedPoint ? <div className="selection-card"><div className="selection-main"><div className="selection-avatar">{selectedPoint.pinned ? <Anchor size={16} /> : <CircleDot size={16} />}</div><div><strong>{selectedPoint.pinned ? 'Anchor point' : 'Mass node'}</strong><span>NODE / {selectedPoint.id.toString().padStart(2, '0')}</span></div><button className="selection-action" onClick={nudgeSelected} disabled={selectedPoint.pinned} title={selectedPoint.pinned ? 'Pinned anchors cannot be nudged' : 'Apply a quick impulse'}><Zap size={13} /> Nudge</button></div><div className="selection-grid"><span>mass <b>{formatNumber(selectedPoint.mass, 1)} kg</b></span><span>links <b>{selectedLinks.length}</b></span><span>speed <b>{formatNumber(selectedSpeed)} px/s</b></span><span>peak load <b>{formatNumber(selectedLoad)}%</b></span><span>x <b>{formatNumber(selectedPoint.x)}</b></span><span>y <b>{formatNumber(selectedPoint.y)}</b></span></div></div> : <div className="empty-selection"><MousePointer2 size={16} /><span>Click a mass or anchor<br /><small>Drag a mass to disturb the field · K nudges selection</small></span></div>}
           </section>
 
           <section className="activity-section">
@@ -628,7 +688,8 @@ export default function App() {
       </main>
 
       <footer className="app-footer"><div><span className="footer-mark"><Grip size={13} /></span> TETHERWORKS / CONSTRAINT LAB</div><div className="footer-center"><span>BUILT FOR CURIOUS HANDS</span><span className="footer-divider" /><span>STATIC / GITHUB PAGES READY</span></div><div className="footer-right"><span className="footer-live-dot" /> {running ? 'SOLVER ONLINE' : 'SOLVER PAUSED'}</div></footer>
-      {notice ? <div className="toast"><span className="toast-pip" />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div> : null}
+      {showInfo ? <div className="info-backdrop" onClick={() => setShowInfo(false)}><section className="info-modal panel-surface" role="dialog" aria-modal="true" aria-labelledby="info-title" onClick={(event) => event.stopPropagation()}><div className="info-modal-header"><div><span className="section-kicker">FIELD NOTES / TETHERWORKS</span><h2 id="info-title">How to run a study</h2></div><button className="round-button info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close project info" title="Close"><X size={16} /></button></div><p className="info-modal-copy">Tetherworks is a small constraint laboratory. Pick a topology, disturb it, and read the response. Every node and link is simulated locally in the browser.</p><div className="info-grid"><div className="info-item"><span className="info-item-number">01</span><strong>Choose a study</strong><span>Seven presets cover bridges, pendulums, signs, springs, and cascades.</span></div><div className="info-item"><span className="info-item-number">02</span><strong>Build the topology</strong><span>Use Anchor, Link, Mass, and Cut directly on the field.</span></div><div className="info-item"><span className="info-item-number">03</span><strong>Stress the system</strong><span>Drag a mass, add wind, nudge it with K, or enable the failure redline.</span></div><div className="info-item"><span className="info-item-number">04</span><strong>Read the telemetry</strong><span>Energy, tension, stability, speed, and node load update as the solver runs.</span></div></div><div className="info-shortcuts"><span><kbd>SPACE</kbd> play / pause</span><span><kbd>R</kbd> reset</span><span><kbd>C</kbd> cut mode</span><span><kbd>L</kbd> labels</span><span><kbd>K</kbd> nudge</span></div></section></div> : null}
+      {notice ? <div className="toast" role="status" aria-live="polite"><span className="toast-pip" />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div> : null}
     </div>
   )
 }
