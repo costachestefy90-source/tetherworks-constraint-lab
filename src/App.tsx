@@ -32,7 +32,7 @@ import {
 import { ConstraintWorld, Link, Material, PhysicsConfig, Point, WorldMetrics, materialLabel } from './physics'
 import { getPreset, PRESETS, PresetDefinition } from './presets'
 
-type ToolMode = 'select' | 'anchor' | 'mass' | 'cut'
+type ToolMode = 'select' | 'anchor' | 'link' | 'mass' | 'cut'
 
 const WORLD_WIDTH = 1000
 const WORLD_HEIGHT = 620
@@ -300,6 +300,8 @@ export default function App() {
   const [config, setConfig] = useState<PhysicsConfig>(DEFAULT_CONFIG)
   const [material, setMaterial] = useState<Material>('rope')
   const [mode, setMode] = useState<ToolMode>('select')
+  const [linkStartId, setLinkStartId] = useState<number | null>(null)
+  const [segmentCount, setSegmentCount] = useState(6)
   const [running, setRunning] = useState(true)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [hoverId, setHoverId] = useState<number | null>(null)
@@ -323,6 +325,7 @@ export default function App() {
     setActivePresetId(preset.id)
     setMaterial(preset.material)
     setSelectedId(null)
+    setLinkStartId(null)
     setRunning(true)
     setNotice(`${preset.name} loaded`)
     setEvents((current) => [`${preset.name} loaded`, 'Preset topology rebuilt', ...current].slice(0, 4))
@@ -399,6 +402,10 @@ export default function App() {
   }, [notice])
 
   const updateConfig = (key: keyof PhysicsConfig, value: number) => setConfig((current) => ({ ...current, [key]: value }))
+  const chooseMode = (nextMode: ToolMode) => {
+    setMode(nextMode)
+    setLinkStartId(null)
+  }
 
   const worldPointFromEvent = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
@@ -423,6 +430,28 @@ export default function App() {
       }
       return
     }
+    if (mode === 'link') {
+      const nearest = world.findPointAt(point.x, point.y, 160)
+      if (!nearest) {
+        setNotice('Select a node to connect')
+        return
+      }
+      if (linkStartId === null) {
+        setLinkStartId(nearest.id)
+        setSelectedId(nearest.id)
+        addEvent(`${nearest.label ?? 'Node'} selected as link start`)
+        setNotice('Select a second node')
+      } else if (nearest.id === linkStartId) {
+        setNotice('Choose a different node')
+      } else {
+        world.addLink(linkStartId, nearest.id, { material, stiffness: config.stiffness })
+        setSelectedId(nearest.id)
+        setLinkStartId(null)
+        addEvent(`${materialLabel[material]} constraint connected`)
+        setNotice('Constraint connected')
+      }
+      return
+    }
     if (mode === 'anchor') {
       const id = world.addPoint(point.x, point.y, { pinned: true, radius: 11, label: 'user anchor' })
       setSelectedId(id)
@@ -431,12 +460,28 @@ export default function App() {
       return
     }
     if (mode === 'mass') {
-      const id = world.addPoint(point.x, point.y, { mass: 3, radius: 15, tint: '#f08a5d' })
       const nearest = world.findPointAt(point.x, point.y, 160)
-      if (nearest && nearest.id !== id) world.addLink(nearest.id, id, { material, stiffness: 0.9 })
-      setSelectedId(id)
-      addEvent(`${materialLabel[material]} mass attached`)
-      setNotice('Mass attached')
+      if (nearest) {
+        let previousId = nearest.id
+        for (let index = 1; index <= segmentCount; index += 1) {
+          const progress = index / segmentCount
+          const id = world.addPoint(
+            nearest.x + (point.x - nearest.x) * progress,
+            nearest.y + (point.y - nearest.y) * progress,
+            { mass: index === segmentCount ? 3 : 0.8, radius: index === segmentCount ? 15 : 6, tint: index === segmentCount ? '#f08a5d' : '#bee6e0' },
+          )
+          world.addLink(previousId, id, { material, stiffness: 0.9 })
+          previousId = id
+        }
+        setSelectedId(previousId)
+        addEvent(`${materialLabel[material]} mass attached · ${segmentCount} segments`)
+        setNotice(`Mass attached / ${segmentCount} segments`)
+      } else {
+        const id = world.addPoint(point.x, point.y, { mass: 3, radius: 15, tint: '#f08a5d' })
+        setSelectedId(id)
+        addEvent(`${materialLabel[material]} mass added`)
+        setNotice('Mass added')
+      }
       return
     }
     const nearest = world.findPointAt(point.x, point.y)
@@ -521,10 +566,11 @@ export default function App() {
             </div>
             <div className="canvas-toolbar">
               <div className="tool-group">
-                <button className={`tool-button primary-tool ${mode === 'select' ? 'is-active' : ''}`} onClick={() => setMode('select')} title="Select and drag masses"><MousePointer2 size={16} /> Select</button>
-                <button className={`tool-button ${mode === 'anchor' ? 'is-active' : ''}`} onClick={() => setMode('anchor')} title="Add a pinned anchor"><Anchor size={16} /> Anchor</button>
-                <button className={`tool-button ${mode === 'mass' ? 'is-active' : ''}`} onClick={() => setMode('mass')} title="Add a mass"><Plus size={16} /> Mass</button>
-                <button className={`tool-button danger-tool ${mode === 'cut' ? 'is-active' : ''}`} onClick={() => setMode('cut')} title="Cut a constraint"><Scissors size={16} /> Cut</button>
+                <button className={`tool-button primary-tool ${mode === 'select' ? 'is-active' : ''}`} onClick={() => chooseMode('select')} title="Select and drag masses"><MousePointer2 size={16} /> Select</button>
+                <button className={`tool-button ${mode === 'anchor' ? 'is-active' : ''}`} onClick={() => chooseMode('anchor')} title="Add a pinned anchor"><Anchor size={16} /> Anchor</button>
+                <button className={`tool-button ${mode === 'link' ? 'is-active' : ''}`} onClick={() => chooseMode('link')} title="Connect two nodes"><Link2 size={16} /> Link</button>
+                <button className={`tool-button ${mode === 'mass' ? 'is-active' : ''}`} onClick={() => chooseMode('mass')} title="Add a mass"><Plus size={16} /> Mass</button>
+                <button className={`tool-button danger-tool ${mode === 'cut' ? 'is-active' : ''}`} onClick={() => chooseMode('cut')} title="Cut a constraint"><Scissors size={16} /> Cut</button>
               </div>
               <div className="canvas-actions">
                 <button className="tool-button play-button" onClick={() => setRunning((value) => !value)}>{running ? <Pause size={15} /> : <Play size={15} />} {running ? 'Pause' : 'Play'}</button>
@@ -558,6 +604,7 @@ export default function App() {
             <SliderRow label="Stiffness" value={config.stiffness} min={0.35} max={1.25} step={0.01} display={`${Math.round(config.stiffness * 100)}%`} onChange={(value) => updateConfig('stiffness', value)} hint="constraint correction" />
             <SliderRow label="Damping" value={config.damping} min={0.82} max={0.995} step={0.005} display={`${Math.round(config.damping * 100)}%`} onChange={(value) => updateConfig('damping', value)} hint="motion decay" />
             <SliderRow label="Solver passes" value={config.solverPasses} min={3} max={12} step={1} display={`${config.solverPasses}`} onChange={(value) => updateConfig('solverPasses', value)} hint="iterations / frame" />
+            <SliderRow label="Segment count" value={segmentCount} min={3} max={14} step={1} display={`${segmentCount}`} onChange={setSegmentCount} hint="detail for new masses" />
           </section>
 
           <section className="control-section visual-section">

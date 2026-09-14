@@ -11,9 +11,9 @@ Tetherworks is a browser-based physics playground for curious hands. Build a rop
 ## What you can do
 
 - Explore seven presets: suspension bridge, pendulum sweep, hanging sign, wrecking arc, rope bridge, spring system, and chain reaction.
-- Drag mass nodes, create pinned anchor points, attach new masses, or cut constraints directly on the canvas.
+- Drag mass nodes, create pinned anchor points, connect any two nodes, attach segmented masses, or cut constraints directly on the canvas.
 - Switch the active behavior between rope, chain, and elastic elements.
-- Tune gravity, wind, damping, stiffness, and solver passes while the simulation is running.
+- Tune gravity, wind, damping, stiffness, solver passes, and the segment count used for new mass links while the simulation is running.
 - Turn on stress colors to make high-tension links visible at a glance.
 - Read system energy, peak tension, stability, center-of-mass movement, and a rolling energy trace.
 - Use keyboard shortcuts: `Space` play/pause, `R` reset, `C` cut mode, and `1`–`7` to load presets.
@@ -54,11 +54,13 @@ GitHub Pages deployment is defined in [`.github/workflows/deploy.yml`](./.github
 | --- | --- |
 | Select | Pause on grab, drag a mass, release it back into the solver |
 | Anchor | Add a pinned point to the field |
-| Mass | Add a weighted node and connect it to the nearest point |
+| Link | Click two existing nodes to connect them with the active material |
+| Mass | Add a weighted node and connect it to the nearest point using the selected segment count |
 | Cut | Remove the nearest constraint under the cursor |
 | Gravity / Wind | Change the external field |
 | Stiffness / Damping | Change constraint correction and motion decay |
 | Solver passes | Trade speed for constraint tightness |
+| Segment count | Set the number of links in a new mass attachment |
 
 ## Project notes
 
