@@ -676,7 +676,7 @@ export default function App() {
             <div className="canvas-wrap">
               <canvas ref={canvasRef} className="simulation-canvas" aria-label="Interactive constraint physics simulation" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={() => setHoverId(null)} />
               <div className="canvas-corner top-left"><span className="corner-label">LIVE / {materialLabel[material].toUpperCase()}</span><span className="corner-coords">{selectedPoint ? `SELECTED · ${selectedPoint.id.toString().padStart(2, '0')}` : 'NO SELECTION'}</span></div>
-              <div className="canvas-corner bottom-right"><span className="corner-label">G {formatNumber(config.gravity)} · W {config.wind > 0 ? '+' : ''}{formatNumber(config.wind)}</span><span className="corner-coords">DAMP {Math.round(config.damping * 100)}%</span></div>
+              <div className="canvas-corner bottom-right"><span className="corner-label">G {formatNumber(config.gravity)} · W {config.wind > 0 ? '+' : ''}{formatNumber(config.wind)}</span><span className="corner-coords">DAMP {Math.round(config.damping * 100)}% · {config.breakTension ? `REDLINE ${formatNumber(config.breakTension)}%` : 'REDLINE OFF'}</span></div>
             </div>
             <div className="canvas-toolbar">
               <div className="tool-group">
@@ -715,7 +715,7 @@ export default function App() {
           <section className="control-section">
             <div className="control-section-title"><span>Material response</span><SlidersHorizontal size={15} /></div>
             <div className="material-switcher" role="group" aria-label="Constraint material">
-              {(['rope', 'chain', 'elastic'] as Material[]).map((option) => <button key={option} className={material === option ? 'is-active' : ''} onClick={() => { if (material === option) return; const before = worldRef.current.snapshot(); setMaterial(option); worldRef.current.setMaterial(option); saveUndo(before); addEvent(`${materialLabel[option]} behavior applied`) }}><span className={`material-swatch ${option}`} />{materialLabel[option]}</button>)}
+              {(['rope', 'chain', 'elastic'] as Material[]).map((option) => <button key={option} className={material === option ? 'is-active' : ''} aria-pressed={material === option} onClick={() => { if (material === option) return; const before = worldRef.current.snapshot(); setMaterial(option); worldRef.current.setMaterial(option); saveUndo(before); addEvent(`${materialLabel[option]} behavior applied`) }}><span className={`material-swatch ${option}`} />{materialLabel[option]}</button>)}
             </div>
             <SliderRow label="Stiffness" value={config.stiffness} min={0.35} max={1.25} step={0.01} display={`${Math.round(config.stiffness * 100)}%`} onChange={(value) => updateConfig('stiffness', value)} hint="constraint correction" />
             <SliderRow label="Damping" value={config.damping} min={0.82} max={0.995} step={0.005} display={`${Math.round(config.damping * 100)}%`} onChange={(value) => updateConfig('damping', value)} hint="motion decay" />

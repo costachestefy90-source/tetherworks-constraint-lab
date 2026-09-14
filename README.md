@@ -73,4 +73,4 @@ GitHub Pages deployment is defined in [`.github/workflows/deploy.yml`](./.github
 
 ## Project notes
 
-The design direction and the five alternatives considered before implementation are recorded in [`docs/feature-directions.md`](./docs/feature-directions.md). The visual language is intentionally closer to a calm instrument panel than a game HUD: dark blueprint surfaces, warm load-path colors, and small monospace readouts keep the physics legible without hiding the playfulness.
+The design direction and the five alternatives considered before implementation are recorded in [`docs/feature-directions.md`](./docs/feature-directions.md). The milestone history is captured in [`docs/devlog.md`](./docs/devlog.md). The visual language is intentionally closer to a calm instrument panel than a game HUD: dark blueprint surfaces, warm load-path colors, and small monospace readouts keep the physics legible without hiding the playfulness.
