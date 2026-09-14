@@ -21,6 +21,7 @@ This log records the meaningful build milestones behind the public Stardance pro
 - Added live mass-weight tuning from 0.5 kg to 12 kg.
 - Added Pin / Release so a selected mass can become an anchor or return to motion without rebuilding the study.
 - Added a bounded undo stack for topology and material edits, with an `U` shortcut and an inspect-mode restore state.
+- Made pin / release undoable and added an optional weighted center-of-mass marker to connect the telemetry to the canvas.
 - Added a project info panel with a compact workflow and keyboard reference, then refreshed the README and Stardance project metadata.
 
 Every milestone above was checked with `npm run typecheck`, `npm run build`, and `git diff --check` before being pushed to `main`.

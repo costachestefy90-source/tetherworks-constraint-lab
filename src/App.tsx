@@ -184,7 +184,7 @@ function drawLink(context: CanvasRenderingContext2D, link: Link, a: Point, b: Po
   context.restore()
 }
 
-function drawWorld(context: CanvasRenderingContext2D, world: ConstraintWorld, config: PhysicsConfig, selectedId: number | null, hoverId: number | null, running: boolean, showGuides: boolean, showLabels: boolean) {
+function drawWorld(context: CanvasRenderingContext2D, world: ConstraintWorld, config: PhysicsConfig, selectedId: number | null, hoverId: number | null, running: boolean, showGuides: boolean, showLabels: boolean, showCenterOfMass: boolean) {
   const { width, height } = world
   context.clearRect(0, 0, width, height)
   context.fillStyle = '#0a1721'
@@ -272,6 +272,42 @@ function drawWorld(context: CanvasRenderingContext2D, world: ConstraintWorld, co
     }
   })
 
+  if (showCenterOfMass && world.points.length) {
+    let totalMass = 0
+    let centerX = 0
+    let centerY = 0
+    world.points.forEach((point) => {
+      totalMass += point.mass
+      centerX += point.x * point.mass
+      centerY += point.y * point.mass
+    })
+    if (totalMass > 0) {
+      centerX /= totalMass
+      centerY /= totalMass
+      context.save()
+      context.strokeStyle = 'rgba(190,230,224,.72)'
+      context.fillStyle = 'rgba(190,230,224,.95)'
+      context.lineWidth = 1
+      context.setLineDash([3, 5])
+      context.beginPath()
+      context.arc(centerX, centerY, 15, 0, Math.PI * 2)
+      context.stroke()
+      context.setLineDash([])
+      context.beginPath()
+      context.moveTo(centerX - 23, centerY)
+      context.lineTo(centerX + 23, centerY)
+      context.moveTo(centerX, centerY - 23)
+      context.lineTo(centerX, centerY + 23)
+      context.stroke()
+      context.beginPath()
+      context.arc(centerX, centerY, 3, 0, Math.PI * 2)
+      context.fill()
+      context.font = '700 9px ui-monospace, SFMono-Regular, Menlo, monospace'
+      context.fillText('CENTER OF MASS', clamp(centerX + 20, 12, width - 112), clamp(centerY - 19, 14, height - 44))
+      context.restore()
+    }
+  }
+
   const windStrength = Math.abs(config.wind)
   if (windStrength > 0.5) {
     const direction = config.wind > 0 ? 1 : -1
@@ -333,6 +369,7 @@ export default function App() {
   const [, setSelectionTick] = useState(0)
   const [showGuides, setShowGuides] = useState(true)
   const [showLabels, setShowLabels] = useState(false)
+  const [showCenterOfMass, setShowCenterOfMass] = useState(false)
   const [notice, setNotice] = useState('')
   const [showInfo, setShowInfo] = useState(false)
 
@@ -405,13 +442,15 @@ export default function App() {
       return
     }
     const nextPinned = !point.pinned
+    const before = worldRef.current.snapshot()
     if (worldRef.current.setPinned(point.id, nextPinned)) {
+      saveUndo(before)
       setSelectionTick((value) => value + 1)
       setRunning(false)
       addEvent(nextPinned ? 'Mass pinned as an anchor' : 'Anchor released as a mass')
       setNotice(nextPinned ? 'Node pinned' : 'Anchor released')
     }
-  }, [addEvent, selectedId])
+  }, [addEvent, saveUndo, selectedId])
 
   useEffect(() => {
     loadPreset('suspension')
@@ -448,7 +487,7 @@ export default function App() {
         addEvent(`${brokenLinks.length} constraint${brokenLinks.length === 1 ? '' : 's'} failed at the redline`)
         setNotice(`${brokenLinks.length} constraint${brokenLinks.length === 1 ? '' : 's'} failed`)
       }
-      drawWorld(context, world, config, selectedId, hoverId, running, showGuides, showLabels)
+      drawWorld(context, world, config, selectedId, hoverId, running, showGuides, showLabels, showCenterOfMass)
       if (time - lastMetricTime > 130) {
         const nextMetrics = world.getMetrics(config)
         setMetrics(nextMetrics)
@@ -463,7 +502,7 @@ export default function App() {
       observer.disconnect()
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
-  }, [addEvent, config, hoverId, running, selectedId, showGuides, showLabels])
+  }, [addEvent, config, hoverId, running, selectedId, showCenterOfMass, showGuides, showLabels])
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -728,6 +767,7 @@ export default function App() {
             <label className="toggle-row"><span><span className="toggle-title">Stress colors</span><span className="toggle-description">Map tension along each link</span></span><input type="checkbox" checked={Boolean(config.showStress)} onChange={(event) => setConfig((current) => ({ ...current, showStress: event.target.checked }))} /><span className="toggle-control" /></label>
             <label className="toggle-row"><span><span className="toggle-title">Field guides</span><span className="toggle-description">Grid, axes, and labels</span></span><input type="checkbox" checked={showGuides} onChange={(event) => setShowGuides(event.target.checked)} /><span className="toggle-control" /></label>
             <label className="toggle-row"><span><span className="toggle-title">Focus labels</span><span className="toggle-description">Show IDs on hovered nodes</span></span><input type="checkbox" checked={showLabels} onChange={(event) => setShowLabels(event.target.checked)} /><span className="toggle-control" /></label>
+            <label className="toggle-row"><span><span className="toggle-title">Center marker</span><span className="toggle-description">Plot the weighted center of mass</span></span><input type="checkbox" checked={showCenterOfMass} onChange={(event) => setShowCenterOfMass(event.target.checked)} /><span className="toggle-control" /></label>
             <label className="toggle-row"><span><span className="toggle-title">Failure redline</span><span className="toggle-description">Automatically break overloaded links</span></span><input type="checkbox" checked={(config.breakTension ?? 0) > 0} onChange={(event) => setConfig((current) => ({ ...current, breakTension: event.target.checked ? 86 : 0 }))} /><span className="toggle-control" /></label>
             {(config.breakTension ?? 0) > 0 ? <SliderRow label="Failure threshold" value={config.breakTension ?? 86} min={45} max={100} step={1} display={`${formatNumber(config.breakTension ?? 86)}%`} onChange={(value) => updateConfig('breakTension', value)} hint="link load before failure" /> : null}
           </section>
@@ -747,7 +787,7 @@ export default function App() {
       </main>
 
       <footer className="app-footer"><div><span className="footer-mark"><Grip size={13} /></span> TETHERWORKS / CONSTRAINT LAB</div><div className="footer-center"><span>BUILT FOR CURIOUS HANDS</span><span className="footer-divider" /><span>STATIC / GITHUB PAGES READY</span></div><div className="footer-right"><span className="footer-live-dot" /> {running ? 'SOLVER ONLINE' : 'SOLVER PAUSED'}</div></footer>
-      {showInfo ? <div className="info-backdrop" onClick={() => setShowInfo(false)}><section className="info-modal panel-surface" role="dialog" aria-modal="true" aria-labelledby="info-title" onClick={(event) => event.stopPropagation()}><div className="info-modal-header"><div><span className="section-kicker">FIELD NOTES / TETHERWORKS</span><h2 id="info-title">How to run a study</h2></div><button className="round-button info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close project info" title="Close"><X size={16} /></button></div><p className="info-modal-copy">Tetherworks is a small constraint laboratory. Pick a topology, disturb it, and read the response. Every node and link is simulated locally in the browser.</p><div className="info-grid"><div className="info-item"><span className="info-item-number">01</span><strong>Choose a study</strong><span>Seven presets cover bridges, pendulums, signs, springs, and cascades.</span></div><div className="info-item"><span className="info-item-number">02</span><strong>Build the topology</strong><span>Use Anchor, Link, Mass, and Cut directly on the field.</span></div><div className="info-item"><span className="info-item-number">03</span><strong>Stress the system</strong><span>Drag a mass, add wind, nudge it with K, or enable the failure redline.</span></div><div className="info-item"><span className="info-item-number">04</span><strong>Read the telemetry</strong><span>Energy, tension, stability, speed, and node load update as the solver runs.</span></div></div><div className="info-shortcuts"><span><kbd>SPACE</kbd> play / pause</span><span><kbd>R</kbd> reset</span><span><kbd>C</kbd> cut mode</span><span><kbd>L</kbd> labels</span><span><kbd>K</kbd> nudge</span><span><kbd>P</kbd> pin / release</span><span><kbd>U</kbd> undo</span></div></section></div> : null}
+      {showInfo ? <div className="info-backdrop" onClick={() => setShowInfo(false)}><section className="info-modal panel-surface" role="dialog" aria-modal="true" aria-labelledby="info-title" onClick={(event) => event.stopPropagation()}><div className="info-modal-header"><div><span className="section-kicker">FIELD NOTES / TETHERWORKS</span><h2 id="info-title">How to run a study</h2></div><button className="round-button info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close project info" title="Close"><X size={16} /></button></div><p className="info-modal-copy">Tetherworks is a small constraint laboratory. Pick a topology, disturb it, and read the response. Every node and link is simulated locally in the browser.</p><div className="info-grid"><div className="info-item"><span className="info-item-number">01</span><strong>Choose a study</strong><span>Seven presets cover bridges, pendulums, signs, springs, and cascades.</span></div><div className="info-item"><span className="info-item-number">02</span><strong>Build the topology</strong><span>Use Anchor, Link, Mass, and Cut directly on the field.</span></div><div className="info-item"><span className="info-item-number">03</span><strong>Stress the system</strong><span>Drag a mass, add wind, nudge it with K, or enable the failure redline.</span></div><div className="info-item"><span className="info-item-number">04</span><strong>Read the telemetry</strong><span>Energy, tension, stability, center marker, speed, and node load update as the solver runs.</span></div></div><div className="info-shortcuts"><span><kbd>SPACE</kbd> play / pause</span><span><kbd>R</kbd> reset</span><span><kbd>C</kbd> cut mode</span><span><kbd>L</kbd> labels</span><span><kbd>K</kbd> nudge</span><span><kbd>P</kbd> pin / release</span><span><kbd>U</kbd> undo</span></div></section></div> : null}
       {notice ? <div className="toast" role="status" aria-live="polite"><span className="toast-pip" />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div> : null}
     </div>
   )
