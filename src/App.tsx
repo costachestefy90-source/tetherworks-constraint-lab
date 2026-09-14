@@ -182,43 +182,45 @@ function drawLink(context: CanvasRenderingContext2D, link: Link, a: Point, b: Po
   context.restore()
 }
 
-function drawWorld(context: CanvasRenderingContext2D, world: ConstraintWorld, config: PhysicsConfig, selectedId: number | null, hoverId: number | null, running: boolean) {
+function drawWorld(context: CanvasRenderingContext2D, world: ConstraintWorld, config: PhysicsConfig, selectedId: number | null, hoverId: number | null, running: boolean, showGuides: boolean) {
   const { width, height } = world
   context.clearRect(0, 0, width, height)
   context.fillStyle = '#0a1721'
   context.fillRect(0, 0, width, height)
 
-  context.save()
-  context.strokeStyle = 'rgba(190,230,224,.065)'
-  context.lineWidth = 1
-  for (let x = 20; x < width; x += 40) {
+  if (showGuides) {
+    context.save()
+    context.strokeStyle = 'rgba(190,230,224,.065)'
+    context.lineWidth = 1
+    for (let x = 20; x < width; x += 40) {
+      context.beginPath()
+      context.moveTo(x, 0)
+      context.lineTo(x, height)
+      context.stroke()
+    }
+    for (let y = 20; y < height; y += 40) {
+      context.beginPath()
+      context.moveTo(0, y)
+      context.lineTo(width, y)
+      context.stroke()
+    }
+    context.strokeStyle = 'rgba(190,230,224,.12)'
+    context.setLineDash([4, 10])
     context.beginPath()
-    context.moveTo(x, 0)
-    context.lineTo(x, height)
+    context.moveTo(width / 2, 0)
+    context.lineTo(width / 2, height)
     context.stroke()
-  }
-  for (let y = 20; y < height; y += 40) {
-    context.beginPath()
-    context.moveTo(0, y)
-    context.lineTo(width, y)
-    context.stroke()
-  }
-  context.strokeStyle = 'rgba(190,230,224,.12)'
-  context.setLineDash([4, 10])
-  context.beginPath()
-  context.moveTo(width / 2, 0)
-  context.lineTo(width / 2, height)
-  context.stroke()
-  context.restore()
+    context.restore()
 
-  context.save()
-  context.fillStyle = 'rgba(190,230,224,.11)'
-  context.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace'
-  context.fillText('Y / LOAD', 22, 32)
-  context.fillText('X / SPAN', width - 80, height - 18)
-  context.fillStyle = 'rgba(190,230,224,.07)'
-  context.fillRect(18, height - 42, width - 36, 1)
-  context.restore()
+    context.save()
+    context.fillStyle = 'rgba(190,230,224,.11)'
+    context.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace'
+    context.fillText('Y / LOAD', 22, 32)
+    context.fillText('X / SPAN', width - 80, height - 18)
+    context.fillStyle = 'rgba(190,230,224,.07)'
+    context.fillRect(18, height - 42, width - 36, 1)
+    context.restore()
+  }
 
   world.links.forEach((link) => {
     const a = world.getPoint(link.a)
@@ -304,6 +306,7 @@ export default function App() {
   const [metrics, setMetrics] = useState<WorldMetrics>(EMPTY_METRICS)
   const [energyHistory, setEnergyHistory] = useState<number[]>([18, 19, 18.5, 20, 21, 20.5, 22, 21, 23, 22, 24, 22])
   const [events, setEvents] = useState<string[]>(['Suspension bridge loaded', 'Solver warm-up complete', 'Ready for interaction'])
+  const [showGuides, setShowGuides] = useState(true)
   const [notice, setNotice] = useState('')
 
   const activePreset = getPreset(activePresetId)
@@ -356,7 +359,7 @@ export default function App() {
       lastTime = time
       const world = worldRef.current
       if (running) world.step(delta, config)
-      drawWorld(context, world, config, selectedId, hoverId, running)
+      drawWorld(context, world, config, selectedId, hoverId, running, showGuides)
       if (time - lastMetricTime > 130) {
         const nextMetrics = world.getMetrics(config)
         setMetrics(nextMetrics)
@@ -371,7 +374,7 @@ export default function App() {
       observer.disconnect()
       if (animationRef.current) cancelAnimationFrame(animationRef.current)
     }
-  }, [config, hoverId, running, selectedId])
+  }, [config, hoverId, running, selectedId, showGuides])
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -482,7 +485,7 @@ export default function App() {
         </div>
         <div className="topbar-middle"><span className="status-pip" /> LOCAL SIMULATION <span className="topbar-divider" /> v0.1 / VERLET CORE</div>
         <div className="topbar-actions">
-          <a href="https://github.com/" target="_blank" rel="noreferrer" className="topbar-link"><Github size={15} /> Source</a>
+          <a href="https://github.com/costachestefy90-source/tetherworks-constraint-lab" target="_blank" rel="noreferrer" className="topbar-link"><Github size={15} /> Source</a>
           <button className="icon-button" aria-label="Project info" title="Project info"><Info size={17} /></button>
           <div className="avatar">S</div>
         </div>
@@ -560,12 +563,17 @@ export default function App() {
           <section className="control-section visual-section">
             <div className="control-section-title"><span>Visualization</span><Crosshair size={15} /></div>
             <label className="toggle-row"><span><span className="toggle-title">Stress colors</span><span className="toggle-description">Map tension along each link</span></span><input type="checkbox" checked={Boolean(config.showStress)} onChange={(event) => setConfig((current) => ({ ...current, showStress: event.target.checked }))} /><span className="toggle-control" /></label>
-            <label className="toggle-row"><span><span className="toggle-title">Field guides</span><span className="toggle-description">Grid, axes, and labels</span></span><input type="checkbox" defaultChecked /><span className="toggle-control" /></label>
+            <label className="toggle-row"><span><span className="toggle-title">Field guides</span><span className="toggle-description">Grid, axes, and labels</span></span><input type="checkbox" checked={showGuides} onChange={(event) => setShowGuides(event.target.checked)} /><span className="toggle-control" /></label>
           </section>
 
           <section className="selection-section">
             <div className="selection-title"><span>Selection</span><span className="selection-status">{selectedPoint ? 'ACTIVE' : 'IDLE'}</span></div>
             {selectedPoint ? <div className="selection-card"><div className="selection-main"><div className="selection-avatar">{selectedPoint.pinned ? <Anchor size={16} /> : <CircleDot size={16} />}</div><div><strong>{selectedPoint.pinned ? 'Anchor point' : 'Mass node'}</strong><span>NODE / {selectedPoint.id.toString().padStart(2, '0')}</span></div></div><div className="selection-grid"><span>mass <b>{formatNumber(selectedPoint.mass, 1)} kg</b></span><span>links <b>{selectedLinks.length}</b></span><span>x <b>{formatNumber(selectedPoint.x)}</b></span><span>y <b>{formatNumber(selectedPoint.y)}</b></span></div></div> : <div className="empty-selection"><MousePointer2 size={16} /><span>Click a mass or anchor<br /><small>Drag a mass to disturb the field</small></span></div>}
+          </section>
+
+          <section className="activity-section">
+            <div className="selection-title"><span>Activity</span><span className="selection-status">{events.length.toString().padStart(2, '0')} EVENTS</span></div>
+            <div className="activity-list">{events.map((event, index) => <div className="activity-row" key={`${event}-${index}`}><span className={`activity-marker ${index === 0 ? 'is-current' : ''}`} /><span>{event}</span><time>{index === 0 ? 'now' : `${index * 2}m`}</time></div>)}</div>
           </section>
 
           <div className="right-footer"><div className="footer-icon"><Code2 size={15} /></div><span><strong>Static front-end build</strong><br />Canvas + TypeScript / no backend</span></div>
