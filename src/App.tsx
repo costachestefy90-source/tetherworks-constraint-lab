@@ -24,12 +24,13 @@ import {
   Settings2,
   SlidersHorizontal,
   Sparkles,
+  Undo2,
   Wind,
   Wrench,
   X,
   Zap,
 } from 'lucide-react'
-import { ConstraintWorld, Link, Material, PhysicsConfig, Point, WorldMetrics, materialLabel } from './physics'
+import { ConstraintWorld, Link, Material, PhysicsConfig, Point, WorldMetrics, WorldSnapshot, materialLabel } from './physics'
 import { getPreset, PRESETS, PresetDefinition } from './presets'
 
 type ToolMode = 'select' | 'anchor' | 'link' | 'mass' | 'cut'
@@ -315,6 +316,7 @@ export default function App() {
   const worldRef = useRef(new ConstraintWorld(WORLD_WIDTH, WORLD_HEIGHT))
   const animationRef = useRef<number | undefined>(undefined)
   const draggingRef = useRef<number | null>(null)
+  const undoStackRef = useRef<WorldSnapshot[]>([])
   const [activePresetId, setActivePresetId] = useState('suspension')
   const [config, setConfig] = useState<PhysicsConfig>(DEFAULT_CONFIG)
   const [material, setMaterial] = useState<Material>('rope')
@@ -323,6 +325,7 @@ export default function App() {
   const [segmentCount, setSegmentCount] = useState(6)
   const [running, setRunning] = useState(true)
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [undoCount, setUndoCount] = useState(0)
   const [hoverId, setHoverId] = useState<number | null>(null)
   const [metrics, setMetrics] = useState<WorldMetrics>(EMPTY_METRICS)
   const [energyHistory, setEnergyHistory] = useState<number[]>([18, 19, 18.5, 20, 21, 20.5, 22, 21, 23, 22, 24, 22])
@@ -339,6 +342,11 @@ export default function App() {
     setEvents((current) => [message, ...current].slice(0, 4))
   }, [])
 
+  const saveUndo = useCallback((snapshot: WorldSnapshot) => {
+    undoStackRef.current = [...undoStackRef.current.slice(-19), snapshot]
+    setUndoCount(undoStackRef.current.length)
+  }, [])
+
   const loadPreset = useCallback((id: string) => {
     const preset = getPreset(id)
     const world = worldRef.current
@@ -348,10 +356,29 @@ export default function App() {
     setMaterial(preset.material)
     setSelectedId(null)
     setLinkStartId(null)
+    undoStackRef.current = []
+    setUndoCount(0)
     setRunning(true)
     setNotice(`${preset.name} loaded`)
     setEvents((current) => [`${preset.name} loaded`, 'Preset topology rebuilt', ...current].slice(0, 4))
   }, [])
+
+  const undoLast = useCallback(() => {
+    const snapshot = undoStackRef.current.pop()
+    if (!snapshot) {
+      setNotice('Nothing to undo')
+      return
+    }
+    const world = worldRef.current
+    world.restore(snapshot)
+    setUndoCount(undoStackRef.current.length)
+    setLinkStartId(null)
+    setSelectedId((current) => current !== null && world.getPoint(current) ? current : null)
+    setMetrics(world.getMetrics(config))
+    setRunning(false)
+    addEvent('Last topology edit undone')
+    setNotice('Last edit undone')
+  }, [addEvent, config])
 
   const nudgeSelected = useCallback(() => {
     const point = selectedId === null ? undefined : worldRef.current.getPoint(selectedId)
@@ -455,12 +482,13 @@ export default function App() {
       if (event.key.toLowerCase() === 'l') setShowLabels((value) => !value)
       if (event.key.toLowerCase() === 'k') nudgeSelected()
       if (event.key.toLowerCase() === 'p') toggleSelectedPin()
+      if (event.key.toLowerCase() === 'u') undoLast()
       const numeric = Number(event.key)
       if (numeric >= 1 && numeric <= PRESETS.length) loadPreset(PRESETS[numeric - 1].id)
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activePresetId, loadPreset, nudgeSelected, toggleSelectedPin])
+  }, [activePresetId, loadPreset, nudgeSelected, toggleSelectedPin, undoLast])
 
   useEffect(() => {
     if (!notice) return
@@ -488,8 +516,10 @@ export default function App() {
     const point = worldPointFromEvent(event)
     const world = worldRef.current
     if (mode === 'cut') {
+      const before = world.snapshot()
       const cut = world.cutLinkAt(point.x, point.y)
       if (cut) {
+        saveUndo(before)
         addEvent(`${materialLabel[cut.material]} constraint cut`)
         setNotice('Constraint cut')
       } else {
@@ -511,11 +541,13 @@ export default function App() {
       } else if (nearest.id === linkStartId) {
         setNotice('Choose a different node')
       } else {
+        const before = world.snapshot()
         const linkId = world.addLink(linkStartId, nearest.id, { material, stiffness: config.stiffness })
         if (linkId === null) {
           setNotice('Those nodes are already connected')
           return
         }
+        saveUndo(before)
         setSelectedId(nearest.id)
         setLinkStartId(null)
         addEvent(`${materialLabel[material]} constraint connected`)
@@ -524,13 +556,16 @@ export default function App() {
       return
     }
     if (mode === 'anchor') {
+      const before = world.snapshot()
       const id = world.addPoint(point.x, point.y, { pinned: true, radius: 11, label: 'user anchor' })
+      saveUndo(before)
       setSelectedId(id)
       addEvent('Anchor point added')
       setNotice('Anchor added')
       return
     }
     if (mode === 'mass') {
+      const before = world.snapshot()
       const nearest = world.findPointAt(point.x, point.y, 160)
       if (nearest) {
         let previousId = nearest.id
@@ -553,6 +588,7 @@ export default function App() {
         addEvent(`${materialLabel[material]} mass added`)
         setNotice('Mass added')
       }
+      saveUndo(before)
       return
     }
     const nearest = world.findPointAt(point.x, point.y)
@@ -652,6 +688,7 @@ export default function App() {
               </div>
               <div className="canvas-actions">
                 <button className="tool-button play-button" onClick={() => setRunning((value) => !value)}>{running ? <Pause size={15} /> : <Play size={15} />} {running ? 'Pause' : 'Play'}</button>
+                <button className="round-button" onClick={undoLast} disabled={undoCount === 0} aria-label="Undo last edit" title={undoCount ? 'Undo last edit' : 'No edits to undo'}><Undo2 size={16} /></button>
                 <button className="round-button" onClick={() => loadPreset(activePresetId)} aria-label="Reset current preset" title="Reset current preset"><RotateCcw size={16} /></button>
               </div>
             </div>
@@ -678,7 +715,7 @@ export default function App() {
           <section className="control-section">
             <div className="control-section-title"><span>Material response</span><SlidersHorizontal size={15} /></div>
             <div className="material-switcher" role="group" aria-label="Constraint material">
-              {(['rope', 'chain', 'elastic'] as Material[]).map((option) => <button key={option} className={material === option ? 'is-active' : ''} onClick={() => { setMaterial(option); worldRef.current.setMaterial(option); addEvent(`${materialLabel[option]} behavior applied`) }}><span className={`material-swatch ${option}`} />{materialLabel[option]}</button>)}
+              {(['rope', 'chain', 'elastic'] as Material[]).map((option) => <button key={option} className={material === option ? 'is-active' : ''} onClick={() => { if (material === option) return; const before = worldRef.current.snapshot(); setMaterial(option); worldRef.current.setMaterial(option); saveUndo(before); addEvent(`${materialLabel[option]} behavior applied`) }}><span className={`material-swatch ${option}`} />{materialLabel[option]}</button>)}
             </div>
             <SliderRow label="Stiffness" value={config.stiffness} min={0.35} max={1.25} step={0.01} display={`${Math.round(config.stiffness * 100)}%`} onChange={(value) => updateConfig('stiffness', value)} hint="constraint correction" />
             <SliderRow label="Damping" value={config.damping} min={0.82} max={0.995} step={0.005} display={`${Math.round(config.damping * 100)}%`} onChange={(value) => updateConfig('damping', value)} hint="motion decay" />
@@ -710,7 +747,7 @@ export default function App() {
       </main>
 
       <footer className="app-footer"><div><span className="footer-mark"><Grip size={13} /></span> TETHERWORKS / CONSTRAINT LAB</div><div className="footer-center"><span>BUILT FOR CURIOUS HANDS</span><span className="footer-divider" /><span>STATIC / GITHUB PAGES READY</span></div><div className="footer-right"><span className="footer-live-dot" /> {running ? 'SOLVER ONLINE' : 'SOLVER PAUSED'}</div></footer>
-      {showInfo ? <div className="info-backdrop" onClick={() => setShowInfo(false)}><section className="info-modal panel-surface" role="dialog" aria-modal="true" aria-labelledby="info-title" onClick={(event) => event.stopPropagation()}><div className="info-modal-header"><div><span className="section-kicker">FIELD NOTES / TETHERWORKS</span><h2 id="info-title">How to run a study</h2></div><button className="round-button info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close project info" title="Close"><X size={16} /></button></div><p className="info-modal-copy">Tetherworks is a small constraint laboratory. Pick a topology, disturb it, and read the response. Every node and link is simulated locally in the browser.</p><div className="info-grid"><div className="info-item"><span className="info-item-number">01</span><strong>Choose a study</strong><span>Seven presets cover bridges, pendulums, signs, springs, and cascades.</span></div><div className="info-item"><span className="info-item-number">02</span><strong>Build the topology</strong><span>Use Anchor, Link, Mass, and Cut directly on the field.</span></div><div className="info-item"><span className="info-item-number">03</span><strong>Stress the system</strong><span>Drag a mass, add wind, nudge it with K, or enable the failure redline.</span></div><div className="info-item"><span className="info-item-number">04</span><strong>Read the telemetry</strong><span>Energy, tension, stability, speed, and node load update as the solver runs.</span></div></div><div className="info-shortcuts"><span><kbd>SPACE</kbd> play / pause</span><span><kbd>R</kbd> reset</span><span><kbd>C</kbd> cut mode</span><span><kbd>L</kbd> labels</span><span><kbd>K</kbd> nudge</span><span><kbd>P</kbd> pin / release</span></div></section></div> : null}
+      {showInfo ? <div className="info-backdrop" onClick={() => setShowInfo(false)}><section className="info-modal panel-surface" role="dialog" aria-modal="true" aria-labelledby="info-title" onClick={(event) => event.stopPropagation()}><div className="info-modal-header"><div><span className="section-kicker">FIELD NOTES / TETHERWORKS</span><h2 id="info-title">How to run a study</h2></div><button className="round-button info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close project info" title="Close"><X size={16} /></button></div><p className="info-modal-copy">Tetherworks is a small constraint laboratory. Pick a topology, disturb it, and read the response. Every node and link is simulated locally in the browser.</p><div className="info-grid"><div className="info-item"><span className="info-item-number">01</span><strong>Choose a study</strong><span>Seven presets cover bridges, pendulums, signs, springs, and cascades.</span></div><div className="info-item"><span className="info-item-number">02</span><strong>Build the topology</strong><span>Use Anchor, Link, Mass, and Cut directly on the field.</span></div><div className="info-item"><span className="info-item-number">03</span><strong>Stress the system</strong><span>Drag a mass, add wind, nudge it with K, or enable the failure redline.</span></div><div className="info-item"><span className="info-item-number">04</span><strong>Read the telemetry</strong><span>Energy, tension, stability, speed, and node load update as the solver runs.</span></div></div><div className="info-shortcuts"><span><kbd>SPACE</kbd> play / pause</span><span><kbd>R</kbd> reset</span><span><kbd>C</kbd> cut mode</span><span><kbd>L</kbd> labels</span><span><kbd>K</kbd> nudge</span><span><kbd>P</kbd> pin / release</span><span><kbd>U</kbd> undo</span></div></section></div> : null}
       {notice ? <div className="toast" role="status" aria-live="polite"><span className="toast-pip" />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div> : null}
     </div>
   )

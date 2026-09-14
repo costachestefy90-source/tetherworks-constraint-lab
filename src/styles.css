@@ -134,7 +134,7 @@ kbd { padding: 3px 5px; border: 1px solid var(--line-strong); border-bottom-colo
 .tool-button.danger-tool.is-active { color: var(--coral); background: rgba(240,138,93,.08); border-color: rgba(240,138,93,.25); }
 .play-button { color: var(--ink); border-color: var(--line-strong); background: rgba(190,230,224,.055); }
 .play-button:hover { color: var(--gold); border-color: rgba(246,196,83,.42); }
-.round-button { width: 34px; height: 34px; border-radius: 7px; }
+.round-button { width: 34px; height: 34px; border-radius: 7px; }.round-button:disabled { cursor: not-allowed; opacity: .32; }.round-button:disabled:hover { color: var(--muted); border-color: var(--line); background: rgba(190,230,224,.04); }
 
 .telemetry-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
 .metric-card { min-height: 100px; padding: 14px 14px 11px; border-radius: 10px; position: relative; overflow: hidden; }

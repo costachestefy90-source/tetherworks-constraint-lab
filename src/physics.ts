@@ -45,6 +45,17 @@ export interface WorldMetrics {
   centerOfMass: { x: number; y: number }
 }
 
+export interface WorldSnapshot {
+  width: number
+  height: number
+  time: number
+  stepCount: number
+  nextPointId: number
+  nextLinkId: number
+  points: Point[]
+  links: Link[]
+}
+
 const MATERIAL_DEFAULTS: Record<Material, { stiffness: number; damping: number }> = {
   rope: { stiffness: 0.78, damping: 0.12 },
   chain: { stiffness: 0.94, damping: 0.08 },
@@ -86,6 +97,32 @@ export class ConstraintWorld {
     this.stepCount = 0
     this.nextPointId = 1
     this.nextLinkId = 1
+  }
+
+  snapshot(): WorldSnapshot {
+    return {
+      width: this.width,
+      height: this.height,
+      time: this.time,
+      stepCount: this.stepCount,
+      nextPointId: this.nextPointId,
+      nextLinkId: this.nextLinkId,
+      points: this.points.map((point) => ({ ...point })),
+      links: this.links.map((link) => ({ ...link })),
+    }
+  }
+
+  restore(snapshot: WorldSnapshot) {
+    this.width = snapshot.width
+    this.height = snapshot.height
+    this.time = snapshot.time
+    this.stepCount = snapshot.stepCount
+    this.nextPointId = snapshot.nextPointId
+    this.nextLinkId = snapshot.nextLinkId
+    this.points.length = 0
+    this.links.length = 0
+    this.points.push(...snapshot.points.map((point) => ({ ...point })))
+    this.links.push(...snapshot.links.map((link) => ({ ...link })))
   }
 
   addPoint(x: number, y: number, options: Partial<Omit<Point, 'id' | 'x' | 'y' | 'oldX' | 'oldY'>> & { velocity?: { x: number; y: number } } = {}) {

@@ -60,6 +60,7 @@ GitHub Pages deployment is defined in [`.github/workflows/deploy.yml`](./.github
 | Link | Click two existing nodes to connect them with the active material |
 | Mass | Add a weighted node and connect it to the nearest point using the selected segment count |
 | Cut | Remove the nearest constraint under the cursor |
+| Undo / `U` | Restore the last topology or material edit (up to 20 edits) |
 | Gravity / Wind | Change the external field |
 | Stiffness / Damping | Change constraint correction and motion decay |
 | Solver passes | Trade speed for constraint tightness |
