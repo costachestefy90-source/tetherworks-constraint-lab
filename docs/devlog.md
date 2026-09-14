@@ -24,4 +24,9 @@ This log records the meaningful build milestones behind the public Stardance pro
 - Made pin / release undoable and added an optional weighted center-of-mass marker to connect the telemetry to the canvas.
 - Added a project info panel with a compact workflow and keyboard reference, then refreshed the README and Stardance project metadata.
 
+## 2026-09-13 — Usability pass
+
+- Added a live “How to play” strip below the canvas toolbar so Select, Anchor, Link, Mass, and Cut explain their next action in context.
+- Added explicit pressed states to the tool controls and pointer-cancel handling so the builder is easier to understand and more reliable across mouse, touch, and keyboard use.
+
 Every milestone above was checked with `npm run typecheck`, `npm run build`, and `git diff --check` before being pushed to `main`.

@@ -21,6 +21,7 @@ Tetherworks is a browser-based physics playground for curious hands. Build a rop
 - Turn on the center marker to see the weighted center of mass move through the field as the structure responds.
 - Read system energy, peak tension, stability, center-of-mass movement, and a rolling energy trace.
 - Use keyboard shortcuts: `Space` play/pause, `R` reset, `C` cut mode, `L` focus labels, `K` nudge, `P` pin/release, and `1`–`7` to load presets.
+- Follow the inline “How to play” prompt below the canvas; it changes with the selected tool and links to the full quick-start guide.
 
 ## Technical notes
 

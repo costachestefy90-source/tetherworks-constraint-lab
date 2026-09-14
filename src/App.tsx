@@ -670,6 +670,19 @@ export default function App() {
     selectedPoint.mass = value
     setSelectionTick((current) => current + 1)
   }
+  const interactionGuide = useMemo(() => {
+    if (mode === 'anchor') return { label: 'ANCHOR MODE', text: 'Click anywhere in the field to add a fixed point.' }
+    if (mode === 'link') {
+      return linkStartId === null
+        ? { label: 'LINK MODE', text: 'Click a node, then click another node to connect them.' }
+        : { label: 'LINK MODE / STEP 2', text: 'Choose a second node to finish the constraint.' }
+    }
+    if (mode === 'mass') return { label: 'MASS MODE', text: 'Click near a node to grow a segmented attachment, or click empty space for a new mass.' }
+    if (mode === 'cut') return { label: 'CUT MODE', text: 'Click a line to remove it and watch the load path reroute.' }
+    return running
+      ? { label: 'SELECT MODE', text: 'Drag a glowing mass to pause, inspect, and reshape the study.' }
+      : { label: 'INSPECT MODE', text: 'Click a node to tune its mass, pin it, or give it a quick nudge.' }
+  }, [linkStartId, mode, running])
 
   return (
     <div className="app-shell">
@@ -713,23 +726,28 @@ export default function App() {
               <div className="canvas-readout"><span>FIELD {WORLD_WIDTH} × {WORLD_HEIGHT}</span><span className="readout-divider" /><span>{formatNumber(worldRef.current.points.length)} NODES</span><span className="readout-divider" /><span>{formatNumber(worldRef.current.links.length)} LINKS</span></div>
             </div>
             <div className="canvas-wrap">
-              <canvas ref={canvasRef} className="simulation-canvas" aria-label="Interactive constraint physics simulation" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={() => setHoverId(null)} />
+              <canvas ref={canvasRef} className="simulation-canvas" aria-label="Interactive constraint physics simulation" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} onPointerLeave={() => setHoverId(null)} />
               <div className="canvas-corner top-left"><span className="corner-label">LIVE / {materialLabel[material].toUpperCase()}</span><span className="corner-coords">{selectedPoint ? `SELECTED · ${selectedPoint.id.toString().padStart(2, '0')}` : 'NO SELECTION'}</span></div>
               <div className="canvas-corner bottom-right"><span className="corner-label">G {formatNumber(config.gravity)} · W {config.wind > 0 ? '+' : ''}{formatNumber(config.wind)}</span><span className="corner-coords">DAMP {Math.round(config.damping * 100)}% · {config.breakTension ? `REDLINE ${formatNumber(config.breakTension)}%` : 'REDLINE OFF'}</span></div>
             </div>
             <div className="canvas-toolbar">
               <div className="tool-group">
-                <button className={`tool-button primary-tool ${mode === 'select' ? 'is-active' : ''}`} onClick={() => chooseMode('select')} title="Select and drag masses"><MousePointer2 size={16} /> Select</button>
-                <button className={`tool-button ${mode === 'anchor' ? 'is-active' : ''}`} onClick={() => chooseMode('anchor')} title="Add a pinned anchor"><Anchor size={16} /> Anchor</button>
-                <button className={`tool-button ${mode === 'link' ? 'is-active' : ''}`} onClick={() => chooseMode('link')} title="Connect two nodes"><Link2 size={16} /> Link</button>
-                <button className={`tool-button ${mode === 'mass' ? 'is-active' : ''}`} onClick={() => chooseMode('mass')} title="Add a mass"><Plus size={16} /> Mass</button>
-                <button className={`tool-button danger-tool ${mode === 'cut' ? 'is-active' : ''}`} onClick={() => chooseMode('cut')} title="Cut a constraint"><Scissors size={16} /> Cut</button>
+                <button className={`tool-button primary-tool ${mode === 'select' ? 'is-active' : ''}`} aria-pressed={mode === 'select'} onClick={() => chooseMode('select')} title="Select and drag masses"><MousePointer2 size={16} /> Select</button>
+                <button className={`tool-button ${mode === 'anchor' ? 'is-active' : ''}`} aria-pressed={mode === 'anchor'} onClick={() => chooseMode('anchor')} title="Add a pinned anchor"><Anchor size={16} /> Anchor</button>
+                <button className={`tool-button ${mode === 'link' ? 'is-active' : ''}`} aria-pressed={mode === 'link'} onClick={() => chooseMode('link')} title="Connect two nodes"><Link2 size={16} /> Link</button>
+                <button className={`tool-button ${mode === 'mass' ? 'is-active' : ''}`} aria-pressed={mode === 'mass'} onClick={() => chooseMode('mass')} title="Add a mass"><Plus size={16} /> Mass</button>
+                <button className={`tool-button danger-tool ${mode === 'cut' ? 'is-active' : ''}`} aria-pressed={mode === 'cut'} onClick={() => chooseMode('cut')} title="Cut a constraint"><Scissors size={16} /> Cut</button>
               </div>
               <div className="canvas-actions">
                 <button className="tool-button play-button" onClick={() => setRunning((value) => !value)}>{running ? <Pause size={15} /> : <Play size={15} />} {running ? 'Pause' : 'Play'}</button>
                 <button className="round-button" onClick={undoLast} disabled={undoCount === 0} aria-label="Undo last edit" title={undoCount ? 'Undo last edit' : 'No edits to undo'}><Undo2 size={16} /></button>
                 <button className="round-button" onClick={() => loadPreset(activePresetId)} aria-label="Reset current preset" title="Reset current preset"><RotateCcw size={16} /></button>
               </div>
+            </div>
+            <div className="interaction-guide" aria-live="polite">
+              <div className="guide-icon"><Wrench size={14} /></div>
+              <div className="guide-copy"><span className="guide-kicker">HOW TO PLAY / {interactionGuide.label}</span><span>{interactionGuide.text}</span></div>
+              <button className="guide-link" onClick={() => setShowInfo(true)} title="Open the full quick-start guide">Guide <ChevronRight size={13} /></button>
             </div>
           </div>
 
