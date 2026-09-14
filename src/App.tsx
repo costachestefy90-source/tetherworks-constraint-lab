@@ -327,6 +327,7 @@ export default function App() {
   const [metrics, setMetrics] = useState<WorldMetrics>(EMPTY_METRICS)
   const [energyHistory, setEnergyHistory] = useState<number[]>([18, 19, 18.5, 20, 21, 20.5, 22, 21, 23, 22, 24, 22])
   const [events, setEvents] = useState<string[]>(['Suspension bridge loaded', 'Solver warm-up complete', 'Ready for interaction'])
+  const [, setSelectionTick] = useState(0)
   const [showGuides, setShowGuides] = useState(true)
   const [showLabels, setShowLabels] = useState(false)
   const [notice, setNotice] = useState('')
@@ -367,6 +368,21 @@ export default function App() {
       setRunning(true)
       addEvent(`${point.label ?? 'Mass'} nudged into motion`)
       setNotice('Impulse applied')
+    }
+  }, [addEvent, selectedId])
+
+  const toggleSelectedPin = useCallback(() => {
+    const point = selectedId === null ? undefined : worldRef.current.getPoint(selectedId)
+    if (!point) {
+      setNotice('Select a node to pin or release')
+      return
+    }
+    const nextPinned = !point.pinned
+    if (worldRef.current.setPinned(point.id, nextPinned)) {
+      setSelectionTick((value) => value + 1)
+      setRunning(false)
+      addEvent(nextPinned ? 'Mass pinned as an anchor' : 'Anchor released as a mass')
+      setNotice(nextPinned ? 'Node pinned' : 'Anchor released')
     }
   }, [addEvent, selectedId])
 
@@ -438,12 +454,13 @@ export default function App() {
       if (event.key.toLowerCase() === 'c') setMode('cut')
       if (event.key.toLowerCase() === 'l') setShowLabels((value) => !value)
       if (event.key.toLowerCase() === 'k') nudgeSelected()
+      if (event.key.toLowerCase() === 'p') toggleSelectedPin()
       const numeric = Number(event.key)
       if (numeric >= 1 && numeric <= PRESETS.length) loadPreset(PRESETS[numeric - 1].id)
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activePresetId, loadPreset, nudgeSelected])
+  }, [activePresetId, loadPreset, nudgeSelected, toggleSelectedPin])
 
   useEffect(() => {
     if (!notice) return
@@ -573,6 +590,11 @@ export default function App() {
   const selectedLinks = selectedId ? worldRef.current.links.filter((link) => link.a === selectedId || link.b === selectedId) : []
   const selectedSpeed = selectedPoint ? Math.hypot((selectedPoint.x - selectedPoint.oldX) * 60, (selectedPoint.y - selectedPoint.oldY) * 60) : 0
   const selectedLoad = selectedLinks.length ? Math.max(...selectedLinks.map((link) => link.tension)) : 0
+  const updateSelectedMass = (value: number) => {
+    if (!selectedPoint || selectedPoint.pinned) return
+    selectedPoint.mass = value
+    setSelectionTick((current) => current + 1)
+  }
 
   return (
     <div className="app-shell">
@@ -675,7 +697,7 @@ export default function App() {
 
           <section className="selection-section">
             <div className="selection-title"><span>Selection</span><span className="selection-status">{selectedPoint ? 'ACTIVE' : 'IDLE'}</span></div>
-            {selectedPoint ? <div className="selection-card"><div className="selection-main"><div className="selection-avatar">{selectedPoint.pinned ? <Anchor size={16} /> : <CircleDot size={16} />}</div><div><strong>{selectedPoint.pinned ? 'Anchor point' : 'Mass node'}</strong><span>NODE / {selectedPoint.id.toString().padStart(2, '0')}</span></div><button className="selection-action" onClick={nudgeSelected} disabled={selectedPoint.pinned} title={selectedPoint.pinned ? 'Pinned anchors cannot be nudged' : 'Apply a quick impulse'}><Zap size={13} /> Nudge</button></div><div className="selection-grid"><span>mass <b>{formatNumber(selectedPoint.mass, 1)} kg</b></span><span>links <b>{selectedLinks.length}</b></span><span>speed <b>{formatNumber(selectedSpeed)} px/s</b></span><span>peak load <b>{formatNumber(selectedLoad)}%</b></span><span>x <b>{formatNumber(selectedPoint.x)}</b></span><span>y <b>{formatNumber(selectedPoint.y)}</b></span></div></div> : <div className="empty-selection"><MousePointer2 size={16} /><span>Click a mass or anchor<br /><small>Drag a mass to disturb the field · K nudges selection</small></span></div>}
+            {selectedPoint ? <div className="selection-card"><div className="selection-main"><div className="selection-avatar">{selectedPoint.pinned ? <Anchor size={16} /> : <CircleDot size={16} />}</div><div><strong>{selectedPoint.pinned ? 'Anchor point' : 'Mass node'}</strong><span>NODE / {selectedPoint.id.toString().padStart(2, '0')}</span></div><div className="selection-actions"><button className="selection-action" onClick={nudgeSelected} disabled={selectedPoint.pinned} title={selectedPoint.pinned ? 'Pinned anchors cannot be nudged' : 'Apply a quick impulse'}><Zap size={13} /> Nudge</button><button className="selection-action secondary-action" onClick={toggleSelectedPin} title={selectedPoint.pinned ? 'Release this anchor' : 'Pin this mass'}><Anchor size={13} /> {selectedPoint.pinned ? 'Release' : 'Pin'}</button></div></div><div className="selection-grid"><span>mass <b>{formatNumber(selectedPoint.mass, 1)} kg</b></span><span>links <b>{selectedLinks.length}</b></span><span>speed <b>{formatNumber(selectedSpeed)} px/s</b></span><span>peak load <b>{formatNumber(selectedLoad)}%</b></span><span>x <b>{formatNumber(selectedPoint.x)}</b></span><span>y <b>{formatNumber(selectedPoint.y)}</b></span></div>{!selectedPoint.pinned ? <div className="selection-tune"><SliderRow label="Mass weight" value={selectedPoint.mass} min={0.5} max={12} step={0.1} display={`${formatNumber(selectedPoint.mass, 1)} kg`} onChange={updateSelectedMass} hint="live node mass" /></div> : null}</div> : <div className="empty-selection"><MousePointer2 size={16} /><span>Click a mass or anchor<br /><small>Drag · K nudge · P pin / release</small></span></div>}
           </section>
 
           <section className="activity-section">
@@ -688,7 +710,7 @@ export default function App() {
       </main>
 
       <footer className="app-footer"><div><span className="footer-mark"><Grip size={13} /></span> TETHERWORKS / CONSTRAINT LAB</div><div className="footer-center"><span>BUILT FOR CURIOUS HANDS</span><span className="footer-divider" /><span>STATIC / GITHUB PAGES READY</span></div><div className="footer-right"><span className="footer-live-dot" /> {running ? 'SOLVER ONLINE' : 'SOLVER PAUSED'}</div></footer>
-      {showInfo ? <div className="info-backdrop" onClick={() => setShowInfo(false)}><section className="info-modal panel-surface" role="dialog" aria-modal="true" aria-labelledby="info-title" onClick={(event) => event.stopPropagation()}><div className="info-modal-header"><div><span className="section-kicker">FIELD NOTES / TETHERWORKS</span><h2 id="info-title">How to run a study</h2></div><button className="round-button info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close project info" title="Close"><X size={16} /></button></div><p className="info-modal-copy">Tetherworks is a small constraint laboratory. Pick a topology, disturb it, and read the response. Every node and link is simulated locally in the browser.</p><div className="info-grid"><div className="info-item"><span className="info-item-number">01</span><strong>Choose a study</strong><span>Seven presets cover bridges, pendulums, signs, springs, and cascades.</span></div><div className="info-item"><span className="info-item-number">02</span><strong>Build the topology</strong><span>Use Anchor, Link, Mass, and Cut directly on the field.</span></div><div className="info-item"><span className="info-item-number">03</span><strong>Stress the system</strong><span>Drag a mass, add wind, nudge it with K, or enable the failure redline.</span></div><div className="info-item"><span className="info-item-number">04</span><strong>Read the telemetry</strong><span>Energy, tension, stability, speed, and node load update as the solver runs.</span></div></div><div className="info-shortcuts"><span><kbd>SPACE</kbd> play / pause</span><span><kbd>R</kbd> reset</span><span><kbd>C</kbd> cut mode</span><span><kbd>L</kbd> labels</span><span><kbd>K</kbd> nudge</span></div></section></div> : null}
+      {showInfo ? <div className="info-backdrop" onClick={() => setShowInfo(false)}><section className="info-modal panel-surface" role="dialog" aria-modal="true" aria-labelledby="info-title" onClick={(event) => event.stopPropagation()}><div className="info-modal-header"><div><span className="section-kicker">FIELD NOTES / TETHERWORKS</span><h2 id="info-title">How to run a study</h2></div><button className="round-button info-modal-close" onClick={() => setShowInfo(false)} aria-label="Close project info" title="Close"><X size={16} /></button></div><p className="info-modal-copy">Tetherworks is a small constraint laboratory. Pick a topology, disturb it, and read the response. Every node and link is simulated locally in the browser.</p><div className="info-grid"><div className="info-item"><span className="info-item-number">01</span><strong>Choose a study</strong><span>Seven presets cover bridges, pendulums, signs, springs, and cascades.</span></div><div className="info-item"><span className="info-item-number">02</span><strong>Build the topology</strong><span>Use Anchor, Link, Mass, and Cut directly on the field.</span></div><div className="info-item"><span className="info-item-number">03</span><strong>Stress the system</strong><span>Drag a mass, add wind, nudge it with K, or enable the failure redline.</span></div><div className="info-item"><span className="info-item-number">04</span><strong>Read the telemetry</strong><span>Energy, tension, stability, speed, and node load update as the solver runs.</span></div></div><div className="info-shortcuts"><span><kbd>SPACE</kbd> play / pause</span><span><kbd>R</kbd> reset</span><span><kbd>C</kbd> cut mode</span><span><kbd>L</kbd> labels</span><span><kbd>K</kbd> nudge</span><span><kbd>P</kbd> pin / release</span></div></section></div> : null}
       {notice ? <div className="toast" role="status" aria-live="polite"><span className="toast-pip" />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div> : null}
     </div>
   )

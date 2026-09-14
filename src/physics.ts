@@ -251,6 +251,15 @@ export class ConstraintWorld {
     return true
   }
 
+  setPinned(id: number, pinned: boolean) {
+    const point = this.getPoint(id)
+    if (!point) return false
+    point.pinned = pinned
+    point.oldX = point.x
+    point.oldY = point.y
+    return true
+  }
+
   findPointAt(x: number, y: number, maxDistance = 30) {
     let nearest: Point | undefined
     let nearestDistance = maxDistance

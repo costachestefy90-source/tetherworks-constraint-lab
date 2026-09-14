@@ -12,13 +12,14 @@ Tetherworks is a browser-based physics playground for curious hands. Build a rop
 
 - Explore seven presets: suspension bridge, pendulum sweep, hanging sign, wrecking arc, rope bridge, spring system, and chain reaction.
 - Drag mass nodes, create pinned anchor points, connect any two nodes, attach segmented masses, or cut constraints directly on the canvas.
+- Select any mass to tune its weight live, pin it as a new anchor, release an anchor back into motion, or give it a quick impulse.
 - Switch the active behavior between rope, chain, and elastic elements.
 - Tune gravity, wind, damping, stiffness, solver passes, and the segment count used for new mass links while the simulation is running.
 - Turn on stress colors to make high-tension links visible at a glance.
 - Enable the failure redline to automatically break links that exceed a chosen load threshold.
 - Toggle focus labels for quick node IDs, then use the inspector's Nudge action (or press `K`) to inject a measured impulse into a selected mass.
 - Read system energy, peak tension, stability, center-of-mass movement, and a rolling energy trace.
-- Use keyboard shortcuts: `Space` play/pause, `R` reset, `C` cut mode, `L` focus labels, `K` nudge the selected mass, and `1`–`7` to load presets.
+- Use keyboard shortcuts: `Space` play/pause, `R` reset, `C` cut mode, `L` focus labels, `K` nudge, `P` pin/release, and `1`–`7` to load presets.
 
 ## Technical notes
 
@@ -66,6 +67,8 @@ GitHub Pages deployment is defined in [`.github/workflows/deploy.yml`](./.github
 | Failure redline | Break a link automatically when its tension reaches the selected threshold |
 | Focus labels | Show a readable node ID beside the hovered or selected point |
 | Nudge / `K` | Apply a quick directional impulse to the selected mass |
+| Pin / Release / `P` | Convert a selected mass into a fixed anchor, or release an anchor |
+| Mass weight | Tune the selected mass between 0.5 kg and 12 kg |
 
 ## Project notes
 
