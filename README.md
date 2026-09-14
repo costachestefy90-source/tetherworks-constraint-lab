@@ -17,6 +17,7 @@ Tetherworks is a browser-based physics playground for curious hands. Build a rop
 - Tune gravity, wind, damping, stiffness, solver passes, and the segment count used for new mass links while the simulation is running.
 - Jump between Calm, Standard, and Storm field conditions, or dial in a custom mix with the sliders.
 - Save one tuned experiment to this browser and restore it later without a backend.
+- Take on three guided field challenges: stormproof the bridge, tune the spring, or reinforce a rope crossing.
 - Turn on stress colors to make high-tension links visible at a glance.
 - Enable the failure redline to automatically break links that exceed a chosen load threshold.
 - Toggle focus labels for quick node IDs, then use the inspector's Nudge action (or press `K`) to inject a measured impulse into a selected mass.
@@ -77,6 +78,7 @@ GitHub Pages deployment is defined in [`.github/workflows/deploy.yml`](./.github
 | Pin / Release / `P` | Convert a selected mass into a fixed anchor, or release an anchor |
 | Mass weight | Tune the selected mass between 0.5 kg and 12 kg |
 | Study memory | Save or restore one complete local experiment, including topology and controls |
+| Field challenge | Follow a four-step goal card built from the existing presets and telemetry |
 
 ## Project notes
 

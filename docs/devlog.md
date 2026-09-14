@@ -35,4 +35,10 @@ This log records the meaningful build milestones behind the public Stardance pro
 - Added browser-local study memory: Save study stores the current topology, material, controls, visual preferences, and active preset; Restore brings it back paused for inspection.
 - Added defensive validation around saved state so a malformed local entry cannot crash the lab.
 
+## 2026-09-13 — Guided field challenges
+
+- Added three four-step challenges that turn the existing systems into approachable goals: Stormproof the bridge, Tune the spring, and Build a better crossing.
+- Challenge progress is derived from the live preset, field condition, topology, redline, and stability state, so the cards teach the player by responding to real experiments.
+- Added restart/load actions and completion states without locking players out of freeform building.
+
 Every milestone above was checked with `npm run typecheck`, `npm run build`, and `git diff --check` before being pushed to `main`.

@@ -50,6 +50,7 @@ const DEFAULT_CONFIG: PhysicsConfig = {
 }
 
 type ConditionId = 'calm' | 'standard' | 'storm' | 'custom'
+type ChallengeId = 'stormproof' | 'spring-tune' | 'bridge-builder'
 
 type SavedStudy = {
   version: 1
@@ -71,6 +72,12 @@ const CONDITION_PRESETS: Array<{ id: Exclude<ConditionId, 'custom'>; label: stri
   { id: 'calm', label: 'Calm', description: 'low gravity / no gust', values: { gravity: 42, wind: 0, damping: 0.975, stiffness: 0.82, solverPasses: 6 } },
   { id: 'standard', label: 'Standard', description: 'balanced starting field', values: { gravity: 86, wind: 0, damping: 0.93, stiffness: 0.92, solverPasses: 8 } },
   { id: 'storm', label: 'Storm', description: 'heavy gravity / crosswind', values: { gravity: 118, wind: 72, damping: 0.9, stiffness: 1.05, solverPasses: 10 } },
+]
+
+const CHALLENGES: Array<{ id: ChallengeId; label: string; title: string; description: string; presetId: string }> = [
+  { id: 'stormproof', label: '01 / LOAD PATH', title: 'Stormproof the bridge', description: 'Turn a calm span into a resilient structure under a crosswind.', presetId: 'suspension' },
+  { id: 'spring-tune', label: '02 / OSCILLATOR', title: 'Tune the spring', description: 'Find a quiet, stable response from a bouncing elastic system.', presetId: 'spring-system' },
+  { id: 'bridge-builder', label: '03 / BUILDER', title: 'Build a better crossing', description: 'Add support and a new connection to reinforce a loose rope bridge.', presetId: 'rope-bridge' },
 ]
 
 const EMPTY_METRICS: WorldMetrics = {
@@ -433,6 +440,7 @@ export default function App() {
   const [showInfo, setShowInfo] = useState(false)
   const [conditionId, setConditionId] = useState<ConditionId>('standard')
   const [savedStudyAt, setSavedStudyAt] = useState<string | null>(null)
+  const [challengeId, setChallengeId] = useState<ChallengeId>('stormproof')
 
   const activePreset = getPreset(activePresetId)
 
@@ -674,6 +682,12 @@ export default function App() {
     addEvent(`${condition.label} field conditions applied`)
     setNotice(`${condition.label} conditions loaded`)
   }
+  const startChallenge = (challenge: (typeof CHALLENGES)[number]) => {
+    setChallengeId(challenge.id)
+    loadPreset(challenge.presetId)
+    addEvent(`${challenge.title} challenge started`)
+    setNotice(`${challenge.title} started`)
+  }
   const chooseMode = (nextMode: ToolMode) => {
     setMode(nextMode)
     setLinkStartId(null)
@@ -821,6 +835,35 @@ export default function App() {
       ? { label: 'SELECT MODE', text: 'Drag a glowing mass to pause, inspect, and reshape the study.' }
       : { label: 'INSPECT MODE', text: 'Click a node to tune its mass, pin it, or give it a quick nudge.' }
   }, [linkStartId, mode, running])
+  const activeChallenge = CHALLENGES.find((challenge) => challenge.id === challengeId) ?? CHALLENGES[0]
+  const nodeCount = worldRef.current.points.length
+  const linkCount = worldRef.current.links.length
+  const challengeSteps = useMemo(() => {
+    if (activeChallenge.id === 'stormproof') {
+      return [
+        { label: 'Load the Suspension bridge preset', done: activePresetId === 'suspension' },
+        { label: 'Choose Storm conditions', done: conditionId === 'storm' },
+        { label: 'Arm the failure redline', done: (config.breakTension ?? 0) > 0 },
+        { label: 'Keep stability above 50%', done: metrics.stability >= 50 },
+      ]
+    }
+    if (activeChallenge.id === 'spring-tune') {
+      return [
+        { label: 'Load the Spring system preset', done: activePresetId === 'spring-system' },
+        { label: 'Choose Calm conditions', done: conditionId === 'calm' },
+        { label: 'Use Elastic material', done: material === 'elastic' },
+        { label: 'Reach 70% stability', done: metrics.stability >= 70 },
+      ]
+    }
+    return [
+      { label: 'Load the Rope bridge preset', done: activePresetId === 'rope-bridge' },
+      { label: 'Add a new support point', done: nodeCount > 26 },
+      { label: 'Add a reinforcing connection', done: linkCount > 33 },
+      { label: 'Reach 50% stability', done: metrics.stability >= 50 },
+    ]
+  }, [activeChallenge.id, activePresetId, conditionId, config.breakTension, linkCount, material, metrics.stability, nodeCount])
+  const challengeComplete = challengeSteps.every((step) => step.done)
+  const challengeProgress = challengeSteps.filter((step) => step.done).length
 
   return (
     <div className="app-shell">
@@ -943,6 +986,20 @@ export default function App() {
               <button className="memory-button secondary-memory" onClick={restoreStudy} disabled={!savedStudyAt}><FolderOpen size={13} /> Restore</button>
             </div>
             <span className="memory-status">{savedStudyAt ? `Saved locally at ${formatSavedTime(savedStudyAt)}` : 'No saved study yet'}</span>
+          </section>
+
+          <section className="control-section challenge-section">
+            <div className="control-section-title"><span>Field challenge</span><Sparkles size={15} /></div>
+            <div className="challenge-card">
+              <div className="challenge-heading"><div><span className="challenge-label">{activeChallenge.label}</span><strong>{activeChallenge.title}</strong><span>{activeChallenge.description}</span></div><span className={`challenge-progress ${challengeComplete ? 'is-complete' : ''}`}>{challengeProgress}/4</span></div>
+              <div className="challenge-picker" role="group" aria-label="Choose a field challenge">
+                {CHALLENGES.map((challenge) => <button key={challenge.id} aria-pressed={challenge.id === activeChallenge.id} className={challenge.id === activeChallenge.id ? 'is-active' : ''} onClick={() => setChallengeId(challenge.id)}>{challenge.label.split(' / ')[0]}</button>)}
+              </div>
+              <div className="challenge-steps">
+                {challengeSteps.map((step, index) => <div className={`challenge-step ${step.done ? 'is-done' : ''}`} key={step.label}><span className="challenge-step-mark">{step.done ? '✓' : String(index + 1).padStart(2, '0')}</span><span>{step.label}</span></div>)}
+              </div>
+              {challengeComplete ? <div className="challenge-complete">Challenge complete · try another study</div> : <button className="challenge-start" onClick={() => startChallenge(activeChallenge)}><Wrench size={13} /> {activePresetId === activeChallenge.presetId ? 'Restart study' : 'Load study'}</button>}
+            </div>
           </section>
 
           <section className="selection-section">

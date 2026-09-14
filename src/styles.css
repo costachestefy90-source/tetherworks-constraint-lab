@@ -201,6 +201,27 @@ kbd { padding: 3px 5px; border: 1px solid var(--line-strong); border-bottom-colo
 .memory-button.secondary-memory { color: var(--mint); border-color: rgba(190,230,224,.18); background: rgba(190,230,224,.045); }
 .memory-button.secondary-memory:hover:not(:disabled) { border-color: rgba(190,230,224,.42); background: rgba(190,230,224,.1); }
 .memory-status { display: block; margin-top: 8px; color: var(--faint); font: 600 8px ui-monospace, monospace; }
+.challenge-section { padding-bottom: 15px; }
+.challenge-card { margin-top: 11px; padding: 11px; border: 1px solid rgba(240,138,93,.2); border-radius: 8px; background: linear-gradient(145deg, rgba(240,138,93,.07), rgba(246,196,83,.035)); }
+.challenge-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.challenge-heading > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.challenge-label { color: var(--coral); font: 800 8px ui-monospace, monospace; letter-spacing: .1em; }
+.challenge-heading strong { color: var(--ink); font-size: 11px; }
+.challenge-heading > div > span:last-child { color: var(--muted); font: 600 8px/1.45 ui-monospace, monospace; }
+.challenge-progress { width: 29px; height: 24px; flex: 0 0 auto; display: grid; place-items: center; color: var(--coral); border: 1px solid rgba(240,138,93,.3); border-radius: 6px; background: rgba(240,138,93,.08); font: 800 9px ui-monospace, monospace; }
+.challenge-progress.is-complete { color: var(--gold); border-color: rgba(246,196,83,.4); background: rgba(246,196,83,.1); }
+.challenge-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 11px; }
+.challenge-picker button { height: 26px; padding: 0 3px; color: var(--faint); background: rgba(7,16,24,.18); border: 1px solid rgba(190,230,224,.11); border-radius: 5px; font: 800 8px ui-monospace, monospace; }
+.challenge-picker button:hover { color: var(--ink); border-color: var(--line-strong); }
+.challenge-picker button.is-active { color: var(--coral); border-color: rgba(240,138,93,.34); background: rgba(240,138,93,.1); }
+.challenge-steps { display: grid; gap: 7px; margin-top: 12px; }
+.challenge-step { display: flex; align-items: center; gap: 7px; color: var(--muted); font: 600 8px/1.25 ui-monospace, monospace; }
+.challenge-step-mark { width: 18px; height: 18px; flex: 0 0 auto; display: grid; place-items: center; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 50%; font-size: 7px; }
+.challenge-step.is-done { color: var(--ink); }
+.challenge-step.is-done .challenge-step-mark { color: var(--gold); border-color: rgba(246,196,83,.42); background: rgba(246,196,83,.1); }
+.challenge-start { width: 100%; height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; margin-top: 12px; color: var(--coral); background: rgba(240,138,93,.08); border: 1px solid rgba(240,138,93,.25); border-radius: 6px; font: 800 8px ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; }
+.challenge-start:hover { color: var(--ink); border-color: rgba(240,138,93,.48); background: rgba(240,138,93,.14); }
+.challenge-complete { margin-top: 12px; padding: 8px; color: var(--gold); border: 1px solid rgba(246,196,83,.24); border-radius: 6px; background: rgba(246,196,83,.08); font: 800 8px ui-monospace, monospace; text-align: center; }
 .selection-section { padding: 16px 0 0; border-top: 1px solid var(--line); }
 .selection-status { color: var(--faint); font: 800 8px ui-monospace, monospace; letter-spacing: .11em; }
 .selection-card { margin-top: 12px; padding: 11px; border: 1px solid rgba(246,196,83,.18); border-radius: 8px; background: rgba(246,196,83,.05); }
