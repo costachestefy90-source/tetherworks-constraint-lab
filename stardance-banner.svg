@@ -1,0 +1,56 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#09131E"/>
+      <stop offset="0.52" stop-color="#102B39"/>
+      <stop offset="1" stop-color="#071018"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="180" y1="700" x2="1390" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F08A5D"/>
+      <stop offset="1" stop-color="#F6C453"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M56 0H0V56" stroke="#BEE6E0" stroke-opacity="0.07"/>
+      <circle cx="0" cy="0" r="2" fill="#BEE6E0" fill-opacity="0.14"/>
+    </pattern>
+    <clipPath id="round"><rect width="1600" height="900" rx="34"/></clipPath>
+  </defs>
+  <g clip-path="url(#round)">
+    <rect width="1600" height="900" fill="url(#bg)"/>
+    <rect width="1600" height="900" fill="url(#grid)"/>
+    <circle cx="1280" cy="60" r="260" fill="#2F8C89" fill-opacity="0.12"/>
+    <circle cx="1430" cy="650" r="310" fill="#F08A5D" fill-opacity="0.08"/>
+
+    <g opacity="0.26" stroke="#BEE6E0" stroke-width="3" stroke-dasharray="10 16">
+      <path d="M110 695C330 585 480 660 655 512C825 368 1002 466 1162 300C1258 200 1395 188 1510 114"/>
+      <path d="M165 175C325 240 374 335 542 352C730 370 736 208 918 182C1072 160 1193 272 1455 330"/>
+    </g>
+
+    <g stroke="#BEE6E0" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M170 690L420 585L645 648L860 450L1120 522L1430 240" stroke="url(#beam)" stroke-width="12"/>
+      <path d="M170 690L420 585L645 648L860 450L1120 522L1430 240" stroke="#FFB06C" stroke-opacity="0.28" stroke-width="28" filter="url(#glow)"/>
+      <path d="M420 585V750M645 648V820M860 450V710M1120 522V752" stroke="#BEE6E0" stroke-opacity="0.6" stroke-dasharray="12 18"/>
+    </g>
+    <g fill="#0B1822" stroke="#BEE6E0" stroke-width="7">
+      <circle cx="170" cy="690" r="22"/><circle cx="420" cy="585" r="22"/><circle cx="645" cy="648" r="22"/>
+      <circle cx="860" cy="450" r="22"/><circle cx="1120" cy="522" r="22"/><circle cx="1430" cy="240" r="22"/>
+    </g>
+    <g fill="#F6C453">
+      <circle cx="170" cy="690" r="8"/><circle cx="420" cy="585" r="8"/><circle cx="645" cy="648" r="8"/>
+      <circle cx="860" cy="450" r="8"/><circle cx="1120" cy="522" r="8"/><circle cx="1430" cy="240" r="8"/>
+    </g>
+
+    <g transform="translate(120 118)">
+      <rect width="560" height="236" rx="22" fill="#08131D" fill-opacity="0.86" stroke="#BEE6E0" stroke-opacity="0.2"/>
+      <text x="38" y="72" fill="#F6C453" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="5">STARDANCE / PHYSICS</text>
+      <text x="38" y="137" fill="#F6F1E8" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="800" letter-spacing="1">TETHERWORKS</text>
+      <text x="40" y="184" fill="#BEE6E0" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" letter-spacing="3">CONSTRAINT LAB</text>
+    </g>
+    <text x="123" y="837" fill="#BEE6E0" fill-opacity="0.74" font-family="Arial, Helvetica, sans-serif" font-size="20" letter-spacing="2">BUILD • PULL • CUT • OBSERVE</text>
+    <text x="1478" y="840" text-anchor="end" fill="#F6C453" fill-opacity="0.8" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="3">R / C / E</text>
+  </g>
+</svg>
