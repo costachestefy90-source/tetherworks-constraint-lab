@@ -22,6 +22,8 @@ import {
   RotateCcw,
   Scissors,
   Settings2,
+  FolderOpen,
+  Save,
   SlidersHorizontal,
   Sparkles,
   Undo2,
@@ -47,6 +49,30 @@ const DEFAULT_CONFIG: PhysicsConfig = {
   breakTension: 0,
 }
 
+type ConditionId = 'calm' | 'standard' | 'storm' | 'custom'
+
+type SavedStudy = {
+  version: 1
+  savedAt: string
+  activePresetId: string
+  material: Material
+  config: PhysicsConfig
+  segmentCount: number
+  conditionId: ConditionId
+  showGuides: boolean
+  showLabels: boolean
+  showCenterOfMass: boolean
+  world: WorldSnapshot
+}
+
+const STUDY_STORAGE_KEY = 'tetherworks-constraint-lab:study'
+
+const CONDITION_PRESETS: Array<{ id: Exclude<ConditionId, 'custom'>; label: string; description: string; values: Pick<PhysicsConfig, 'gravity' | 'wind' | 'damping' | 'stiffness' | 'solverPasses'> }> = [
+  { id: 'calm', label: 'Calm', description: 'low gravity / no gust', values: { gravity: 42, wind: 0, damping: 0.975, stiffness: 0.82, solverPasses: 6 } },
+  { id: 'standard', label: 'Standard', description: 'balanced starting field', values: { gravity: 86, wind: 0, damping: 0.93, stiffness: 0.92, solverPasses: 8 } },
+  { id: 'storm', label: 'Storm', description: 'heavy gravity / crosswind', values: { gravity: 118, wind: 72, damping: 0.9, stiffness: 1.05, solverPasses: 10 } },
+]
+
 const EMPTY_METRICS: WorldMetrics = {
   energy: 0,
   kinetic: 0,
@@ -60,6 +86,39 @@ const EMPTY_METRICS: WorldMetrics = {
 
 const formatNumber = (value: number, digits = 0) => value.toLocaleString('en-US', { maximumFractionDigits: digits })
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+const formatSavedTime = (value: string) => {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'local study' : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+const isMaterial = (value: unknown): value is Material => value === 'rope' || value === 'chain' || value === 'elastic'
+
+const isSavedStudy = (value: unknown): value is SavedStudy => {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Partial<SavedStudy>
+  const config = candidate.config
+  const world = candidate.world
+  return candidate.version === 1
+    && typeof candidate.savedAt === 'string'
+    && typeof candidate.activePresetId === 'string'
+    && isMaterial(candidate.material)
+    && (candidate.conditionId === 'calm' || candidate.conditionId === 'standard' || candidate.conditionId === 'storm' || candidate.conditionId === 'custom')
+    && typeof candidate.segmentCount === 'number'
+    && typeof candidate.showGuides === 'boolean'
+    && typeof candidate.showLabels === 'boolean'
+    && typeof candidate.showCenterOfMass === 'boolean'
+    && Boolean(config)
+    && typeof config?.gravity === 'number'
+    && typeof config?.wind === 'number'
+    && typeof config?.damping === 'number'
+    && typeof config?.stiffness === 'number'
+    && typeof config?.solverPasses === 'number'
+    && Boolean(world)
+    && typeof world?.width === 'number'
+    && typeof world?.height === 'number'
+    && Array.isArray(world?.points)
+    && Array.isArray(world?.links)
+}
 
 const materialColors: Record<Material, { stroke: string; accent: string; soft: string }> = {
   rope: { stroke: '#f6c453', accent: '#ffcf68', soft: '#604e26' },
@@ -372,6 +431,8 @@ export default function App() {
   const [showCenterOfMass, setShowCenterOfMass] = useState(false)
   const [notice, setNotice] = useState('')
   const [showInfo, setShowInfo] = useState(false)
+  const [conditionId, setConditionId] = useState<ConditionId>('standard')
+  const [savedStudyAt, setSavedStudyAt] = useState<string | null>(null)
 
   const activePreset = getPreset(activePresetId)
 
@@ -399,6 +460,74 @@ export default function App() {
     setNotice(`${preset.name} loaded`)
     setEvents((current) => [`${preset.name} loaded`, 'Preset topology rebuilt', ...current].slice(0, 4))
   }, [])
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STUDY_STORAGE_KEY)
+      if (!raw) return
+      const saved = JSON.parse(raw) as unknown
+      if (isSavedStudy(saved)) setSavedStudyAt(saved.savedAt)
+    } catch {
+      setSavedStudyAt(null)
+    }
+  }, [])
+
+  const saveStudy = useCallback(() => {
+    const savedAt = new Date().toISOString()
+    const payload: SavedStudy = {
+      version: 1,
+      savedAt,
+      activePresetId,
+      material,
+      config: { ...config },
+      segmentCount,
+      conditionId,
+      showGuides,
+      showLabels,
+      showCenterOfMass,
+      world: worldRef.current.snapshot(),
+    }
+    try {
+      window.localStorage.setItem(STUDY_STORAGE_KEY, JSON.stringify(payload))
+      setSavedStudyAt(savedAt)
+      addEvent('Experiment saved to this browser')
+      setNotice('Experiment saved locally')
+    } catch {
+      setNotice('Could not save this experiment')
+    }
+  }, [activePresetId, addEvent, conditionId, config, material, segmentCount, showCenterOfMass, showGuides, showLabels])
+
+  const restoreStudy = useCallback(() => {
+    try {
+      const raw = window.localStorage.getItem(STUDY_STORAGE_KEY)
+      const parsed = raw ? JSON.parse(raw) as unknown : null
+      if (!isSavedStudy(parsed)) {
+        setNotice('No saved experiment found')
+        return
+      }
+      const preset = getPreset(parsed.activePresetId)
+      worldRef.current.restore(parsed.world)
+      setActivePresetId(preset.id)
+      setMaterial(parsed.material)
+      setConfig(parsed.config)
+      setSegmentCount(parsed.segmentCount)
+      setConditionId(parsed.conditionId)
+      setShowGuides(parsed.showGuides)
+      setShowLabels(parsed.showLabels)
+      setShowCenterOfMass(parsed.showCenterOfMass)
+      setSelectedId(null)
+      setLinkStartId(null)
+      undoStackRef.current = []
+      setUndoCount(0)
+      setMetrics(worldRef.current.getMetrics(parsed.config))
+      setRunning(false)
+      setSavedStudyAt(parsed.savedAt)
+      addEvent('Saved experiment restored')
+      setNotice('Saved experiment restored')
+    } catch {
+      setNotice('Saved experiment could not be restored')
+    }
+  }, [addEvent])
 
   const undoLast = useCallback(() => {
     const snapshot = undoStackRef.current.pop()
@@ -535,7 +664,16 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [notice])
 
-  const updateConfig = (key: keyof PhysicsConfig, value: number) => setConfig((current) => ({ ...current, [key]: value }))
+  const updateConfig = (key: keyof PhysicsConfig, value: number) => {
+    setConfig((current) => ({ ...current, [key]: value }))
+    if (key !== 'breakTension' && key !== 'showStress') setConditionId('custom')
+  }
+  const applyCondition = (condition: (typeof CONDITION_PRESETS)[number]) => {
+    setConfig((current) => ({ ...current, ...condition.values }))
+    setConditionId(condition.id)
+    addEvent(`${condition.label} field conditions applied`)
+    setNotice(`${condition.label} conditions loaded`)
+  }
   const chooseMode = (nextMode: ToolMode) => {
     setMode(nextMode)
     setLinkStartId(null)
@@ -767,6 +905,13 @@ export default function App() {
             <div className="control-section-title"><span>Environment</span><Wind size={15} /></div>
             <SliderRow label="Gravity" value={config.gravity} min={0} max={220} step={1} display={`${formatNumber(config.gravity)} px/s²`} onChange={(value) => updateConfig('gravity', value)} hint="downward field" />
             <SliderRow label="Wind" value={config.wind} min={-100} max={100} step={1} display={`${config.wind > 0 ? '+' : ''}${formatNumber(config.wind)}`} onChange={(value) => updateConfig('wind', value)} hint="horizontal gust" />
+            <div className="quick-conditions">
+              <div className="quick-conditions-heading"><span>Quick conditions</span><span>{conditionId === 'custom' ? 'CUSTOM' : conditionId.toUpperCase()}</span></div>
+              <div className="condition-buttons" role="group" aria-label="Quick field conditions">
+                {CONDITION_PRESETS.map((condition) => <button key={condition.id} aria-pressed={conditionId === condition.id} className={conditionId === condition.id ? 'is-active' : ''} onClick={() => applyCondition(condition)}>{condition.label}</button>)}
+              </div>
+              <span className="slider-hint">{conditionId === 'custom' ? 'manual field mix' : CONDITION_PRESETS.find((condition) => condition.id === conditionId)?.description}</span>
+            </div>
           </section>
 
           <section className="control-section">
@@ -788,6 +933,16 @@ export default function App() {
             <label className="toggle-row"><span><span className="toggle-title">Center marker</span><span className="toggle-description">Plot the weighted center of mass</span></span><input type="checkbox" checked={showCenterOfMass} onChange={(event) => setShowCenterOfMass(event.target.checked)} /><span className="toggle-control" /></label>
             <label className="toggle-row"><span><span className="toggle-title">Failure redline</span><span className="toggle-description">Automatically break overloaded links</span></span><input type="checkbox" checked={(config.breakTension ?? 0) > 0} onChange={(event) => setConfig((current) => ({ ...current, breakTension: event.target.checked ? 86 : 0 }))} /><span className="toggle-control" /></label>
             {(config.breakTension ?? 0) > 0 ? <SliderRow label="Failure threshold" value={config.breakTension ?? 86} min={45} max={100} step={1} display={`${formatNumber(config.breakTension ?? 86)}%`} onChange={(value) => updateConfig('breakTension', value)} hint="link load before failure" /> : null}
+          </section>
+
+          <section className="control-section memory-section">
+            <div className="control-section-title"><span>Study memory</span><Save size={15} /></div>
+            <p className="memory-description">Keep one experiment in this browser so you can return to a tuned structure later.</p>
+            <div className="memory-actions">
+              <button className="memory-button" onClick={saveStudy}><Save size={13} /> Save study</button>
+              <button className="memory-button secondary-memory" onClick={restoreStudy} disabled={!savedStudyAt}><FolderOpen size={13} /> Restore</button>
+            </div>
+            <span className="memory-status">{savedStudyAt ? `Saved locally at ${formatSavedTime(savedStudyAt)}` : 'No saved study yet'}</span>
           </section>
 
           <section className="selection-section">

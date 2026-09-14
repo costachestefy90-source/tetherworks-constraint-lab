@@ -171,6 +171,13 @@ kbd { padding: 3px 5px; border: 1px solid var(--line-strong); border-bottom-colo
 .slider-row input[type="range"]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; border: 2px solid #08131b; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 1px rgba(246,196,83,.7), 0 0 10px rgba(246,196,83,.35); }
 .slider-row input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border: 2px solid #08131b; border-radius: 50%; background: var(--gold); }
 .slider-hint { display: block; margin-top: 6px; color: var(--faint); font: 600 8px ui-monospace, monospace; }
+.quick-conditions { margin-top: 18px; padding-top: 13px; border-top: 1px solid rgba(190,230,224,.08); }
+.quick-conditions-heading { display: flex; justify-content: space-between; color: var(--muted); font: 800 8px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
+.quick-conditions-heading span:last-child { color: var(--gold); }
+.condition-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 9px; }
+.condition-buttons button { height: 29px; padding: 0 4px; color: var(--faint); background: rgba(190,230,224,.025); border: 1px solid var(--line); border-radius: 6px; font-size: 9px; font-weight: 750; transition: .2s ease; }
+.condition-buttons button:hover { color: var(--ink); border-color: var(--line-strong); }
+.condition-buttons button.is-active { color: var(--gold); border-color: rgba(246,196,83,.35); background: rgba(246,196,83,.08); }
 .material-switcher { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 14px; }
 .material-switcher button { min-width: 0; height: 31px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 4px; color: var(--faint); background: rgba(190,230,224,.025); border: 1px solid var(--line); border-radius: 6px; font-size: 9px; font-weight: 750; }
 .material-switcher button:hover { color: var(--ink); border-color: var(--line-strong); }
@@ -185,6 +192,15 @@ kbd { padding: 3px 5px; border: 1px solid var(--line-strong); border-bottom-colo
 .toggle-control { position: relative; flex: 0 0 auto; width: 28px; height: 16px; border: 1px solid var(--line-strong); border-radius: 9px; background: rgba(190,230,224,.04); transition: .2s ease; }
 .toggle-control::after { content: ""; position: absolute; width: 10px; height: 10px; top: 2px; left: 2px; border-radius: 50%; background: var(--faint); transition: .2s ease; }
 .toggle-row input:checked + .toggle-control { border-color: rgba(190,230,224,.4); background: rgba(190,230,224,.13); }.toggle-row input:checked + .toggle-control::after { left: 14px; background: var(--mint); box-shadow: 0 0 8px rgba(190,230,224,.45); }
+.memory-section { padding-bottom: 15px; }
+.memory-description { margin: 9px 0 0; color: var(--faint); font: 600 8px/1.45 ui-monospace, monospace; }
+.memory-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 11px; }
+.memory-button { min-width: 0; height: 31px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; color: var(--gold); background: rgba(246,196,83,.08); border: 1px solid rgba(246,196,83,.2); border-radius: 6px; font: 800 8px ui-monospace, monospace; letter-spacing: .04em; transition: .2s ease; }
+.memory-button:hover:not(:disabled) { color: var(--ink); border-color: rgba(246,196,83,.48); background: rgba(246,196,83,.14); }
+.memory-button:disabled { cursor: not-allowed; opacity: .35; }
+.memory-button.secondary-memory { color: var(--mint); border-color: rgba(190,230,224,.18); background: rgba(190,230,224,.045); }
+.memory-button.secondary-memory:hover:not(:disabled) { border-color: rgba(190,230,224,.42); background: rgba(190,230,224,.1); }
+.memory-status { display: block; margin-top: 8px; color: var(--faint); font: 600 8px ui-monospace, monospace; }
 .selection-section { padding: 16px 0 0; border-top: 1px solid var(--line); }
 .selection-status { color: var(--faint); font: 800 8px ui-monospace, monospace; letter-spacing: .11em; }
 .selection-card { margin-top: 12px; padding: 11px; border: 1px solid rgba(246,196,83,.18); border-radius: 8px; background: rgba(246,196,83,.05); }

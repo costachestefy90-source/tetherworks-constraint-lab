@@ -29,4 +29,10 @@ This log records the meaningful build milestones behind the public Stardance pro
 - Added a live “How to play” strip below the canvas toolbar so Select, Anchor, Link, Mass, and Cut explain their next action in context.
 - Added explicit pressed states to the tool controls and pointer-cancel handling so the builder is easier to understand and more reliable across mouse, touch, and keyboard use.
 
+## 2026-09-13 — Experiment memory and quick conditions
+
+- Added Calm, Standard, and Storm field-condition buttons so new players can feel the difference between gravity, wind, damping, and solver presets without hunting through sliders.
+- Added browser-local study memory: Save study stores the current topology, material, controls, visual preferences, and active preset; Restore brings it back paused for inspection.
+- Added defensive validation around saved state so a malformed local entry cannot crash the lab.
+
 Every milestone above was checked with `npm run typecheck`, `npm run build`, and `git diff --check` before being pushed to `main`.

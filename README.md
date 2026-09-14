@@ -15,6 +15,8 @@ Tetherworks is a browser-based physics playground for curious hands. Build a rop
 - Select any mass to tune its weight live, pin it as a new anchor, release an anchor back into motion, or give it a quick impulse.
 - Switch the active behavior between rope, chain, and elastic elements.
 - Tune gravity, wind, damping, stiffness, solver passes, and the segment count used for new mass links while the simulation is running.
+- Jump between Calm, Standard, and Storm field conditions, or dial in a custom mix with the sliders.
+- Save one tuned experiment to this browser and restore it later without a backend.
 - Turn on stress colors to make high-tension links visible at a glance.
 - Enable the failure redline to automatically break links that exceed a chosen load threshold.
 - Toggle focus labels for quick node IDs, then use the inspector's Nudge action (or press `K`) to inject a measured impulse into a selected mass.
@@ -64,6 +66,7 @@ GitHub Pages deployment is defined in [`.github/workflows/deploy.yml`](./.github
 | Cut | Remove the nearest constraint under the cursor |
 | Undo / `U` | Restore the last topology or material edit (up to 20 edits) |
 | Gravity / Wind | Change the external field |
+| Quick conditions | Load Calm, Standard, or Storm field settings in one click |
 | Stiffness / Damping | Change constraint correction and motion decay |
 | Solver passes | Trade speed for constraint tightness |
 | Segment count | Set the number of links in a new mass attachment |
@@ -73,6 +76,7 @@ GitHub Pages deployment is defined in [`.github/workflows/deploy.yml`](./.github
 | Nudge / `K` | Apply a quick directional impulse to the selected mass |
 | Pin / Release / `P` | Convert a selected mass into a fixed anchor, or release an anchor |
 | Mass weight | Tune the selected mass between 0.5 kg and 12 kg |
+| Study memory | Save or restore one complete local experiment, including topology and controls |
 
 ## Project notes
 
